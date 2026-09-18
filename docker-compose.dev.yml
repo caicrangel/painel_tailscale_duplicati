@@ -1,0 +1,18 @@
+# Só o Postgres, com porta publicada, para rodar `npm run dev` na máquina.
+#   docker compose -f docker-compose.dev.yml up -d
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-painel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-painel}
+      POSTGRES_DB: ${POSTGRES_DB:-painel}
+      TZ: ${TZ:-America/Sao_Paulo}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-dev-data:

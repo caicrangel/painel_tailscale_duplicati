@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+/* Painel de operação: tema escuro por padrão, claro disponível via [data-theme="light"]. */
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
+
+  --color-bg: #0b0f14;
+  --color-surface: #121820;
+  --color-surface-2: #1a222c;
+  --color-border: #253040;
+  --color-border-strong: #33415480;
+
+  --color-fg: #e6edf3;
+  --color-muted: #8ba0b5;
+  --color-faint: #5d7086;
+
+  --color-ok: #3fb950;
+  --color-ok-dim: #3fb95022;
+  --color-warn: #d29922;
+  --color-warn-dim: #d2992222;
+  --color-danger: #f85149;
+  --color-danger-dim: #f8514922;
+  --color-late: #a371f7;
+  --color-late-dim: #a371f722;
+  --color-info: #58a6ff;
+  --color-info-dim: #58a6ff22;
+  --color-idle: #8ba0b5;
+  --color-idle-dim: #8ba0b522;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #f6f8fa;
+  --color-surface: #ffffff;
+  --color-surface-2: #f0f3f6;
+  --color-border: #d8dee4;
+  --color-fg: #1f2328;
+  --color-muted: #59636e;
+  --color-ok: #1a7f37;
+  --color-warn: #9a6700;
+  --color-danger: #cf222e;
+  --color-late: #8250df;
+  --color-info: #0969da;
+  --color-idle: #59636e;
+}
+
+html, body {
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--color-info); color: #fff; }
+
+/* Scrollbar discreta, combinando com o tema */
+* { scrollbar-width: thin; scrollbar-color: var(--color-border) transparent; }

@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-painel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      POSTGRES_DB: ${POSTGRES_DB:-painel}
+      TZ: ${TZ:-America/Sao_Paulo}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-painel} -d ${POSTGRES_DB:-painel}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      target: app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-painel}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-painel}?schema=public
+      HOSTNAME: "0.0.0.0"
+    # Publique apenas na interface da tailnet. Troque 127.0.0.1 pelo IP 100.x.y.z
+    # do servidor para que as máquinas dos clientes alcancem o endpoint de ingestão.
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      target: worker
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-painel}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-painel}?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+      app:
+        condition: service_started
+
+volumes:
+  postgres-data:
