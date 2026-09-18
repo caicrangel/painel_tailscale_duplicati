@@ -1,0 +1,378 @@
+// Painel de monitoramento — Fase 1
+// Nomes de tabela/coluna em inglês; textos de UI em português (ver CLAUDE.md).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  OPERATOR
+  VIEWER
+}
+
+enum Plan {
+  ESSENCIAL
+  PROFISSIONAL
+  CORPORATIVO
+}
+
+enum MachineStatus {
+  ONLINE
+  IDLE
+  OFFLINE
+  UNKNOWN
+}
+
+enum MachineSource {
+  TAILSCALE
+  DUPLICATI
+  MANUAL
+}
+
+enum ParsedResult {
+  SUCCESS
+  WARNING
+  ERROR
+  FATAL
+  UNKNOWN
+}
+
+enum JobStatus {
+  OK
+  WARNING
+  ERROR
+  LATE
+  PAUSED
+  UNKNOWN
+}
+
+enum AlertType {
+  BACKUP_FAILED
+  BACKUP_WARNING
+  BACKUP_LATE
+  MACHINE_OFFLINE
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum NotificationKind {
+  OPEN
+  RECOVERY
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum SyncKind {
+  TAILSCALE
+  LATE_CHECK
+  ALERTS
+  NOTIFY
+  MAINTENANCE
+}
+
+// ─── Usuários e auditoria ────────────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         Role      @default(VIEWER)
+  active       Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  auditLogs          AuditLog[]
+  acknowledgedAlerts Alert[]    @relation("AlertAcknowledgedBy")
+
+  @@index([active])
+  @@map("users")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  userEmail  String? // preservado mesmo se o usuário for removido
+  action     String
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+// ─── Clientes e tokens de ingestão ───────────────────────────────────────────
+
+model Client {
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  plan           Plan     @default(ESSENCIAL)
+  contactName    String?
+  contactEmail   String?
+  contactPhone   String?
+  telegramChatId String? // Fase 1: nulo, tudo cai no chat global
+  notes          String?
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  machines     Machine[]
+  ingestTokens IngestToken[]
+  alerts       Alert[]
+
+  @@index([active])
+  @@map("clients")
+}
+
+/// Token opaco usado na URL de ingestão. Guardado em texto claro de propósito:
+/// a tela de Clientes precisa reexibi-lo para copiar/colar. É segredo de baixo
+/// valor, gerado por nós, revogável, e só dá acesso de escrita ao webhook.
+model IngestToken {
+  id         String    @id @default(cuid())
+  clientId   String
+  token      String    @unique
+  label      String    @default("padrão")
+  active     Boolean   @default(true)
+  lastUsedAt DateTime?
+  useCount   Int       @default(0)
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, active])
+  @@map("ingest_tokens")
+}
+
+// ─── Máquinas ────────────────────────────────────────────────────────────────
+
+model Machine {
+  id                 String        @id @default(cuid())
+  clientId           String? // nulo = device ainda não atribuído a um cliente
+  source             MachineSource @default(TAILSCALE)
+  tailscaleDeviceId  String?       @unique
+  duplicatiMachineId String? // Extra.machine-id do Duplicati
+  hostname           String
+  displayName        String?
+  os                 String?
+  osVersion          String?
+  tailscaleVersion   String?
+  addresses          String[]      @default([])
+  tags               String[]      @default([])
+  updateAvailable    Boolean       @default(false)
+  lastSeen           DateTime?
+  status             MachineStatus @default(UNKNOWN)
+  statusChangedAt    DateTime?
+  maintenanceUntil   DateTime?
+  notes              String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  client     Client?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  backupJobs BackupJob[]
+  alerts     Alert[]
+
+  @@index([clientId, status])
+  @@index([status, lastSeen])
+  @@index([duplicatiMachineId])
+  @@map("machines")
+}
+
+// ─── Jobs e execuções de backup ──────────────────────────────────────────────
+
+model BackupJob {
+  id                String  @id @default(cuid())
+  machineId         String
+  name              String
+  duplicatiBackupId String
+  destinationHint   String?
+
+  /// Dead man's switch: atraso = lastRunAt + interval + tolerance < agora
+  expectedIntervalMinutes Int       @default(1440)
+  toleranceMinutes        Int       @default(360)
+  graceUntil              DateTime? // carência após o cadastro, para não alertar no dia 1
+
+  active Boolean @default(true)
+  paused Boolean @default(false)
+
+  // Denormalizados para o dashboard responder em uma query
+  lastRunAt        DateTime?
+  lastParsedResult ParsedResult?
+  lastRunId        String?
+  nextExpectedAt   DateTime?
+  status           JobStatus     @default(UNKNOWN)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  machine Machine     @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  runs    BackupRun[]
+  alerts  Alert[]
+
+  @@unique([machineId, duplicatiBackupId])
+  @@index([status, nextExpectedAt])
+  @@index([active, paused])
+  @@map("backup_jobs")
+}
+
+model BackupRun {
+  id           String       @id @default(cuid())
+  backupJobId  String
+  parsedResult ParsedResult @default(UNKNOWN)
+
+  beginTime       DateTime?
+  endTime         DateTime?
+  durationSeconds Int?
+
+  sizeOfExaminedFiles BigInt?
+  examinedFiles       BigInt?
+  addedFiles          BigInt?
+  deletedFiles        BigInt?
+  modifiedFiles       BigInt?
+  bytesUploaded       BigInt?
+  bytesDownloaded     BigInt?
+  knownFileSize       BigInt?
+
+  warningsCount Int @default(0)
+  errorsCount   Int @default(0)
+  messagesCount Int @default(0)
+
+  mainOperation    String?
+  duplicatiVersion String?
+
+  /// Sempre preenchido, antes de qualquer parsing.
+  rawPayload     Json
+  rawContentType String?
+  parseError     String?
+
+  receivedAt DateTime @default(now())
+
+  backupJob BackupJob @relation(fields: [backupJobId], references: [id], onDelete: Cascade)
+  alerts    Alert[]
+
+  @@unique([backupJobId, beginTime, endTime])
+  @@index([backupJobId, receivedAt(sort: Desc)])
+  @@index([receivedAt(sort: Desc)])
+  @@index([parsedResult, receivedAt(sort: Desc)])
+  @@map("backup_runs")
+}
+
+// ─── Alertas ─────────────────────────────────────────────────────────────────
+
+model Alert {
+  id        String        @id @default(cuid())
+  type      AlertType
+  severity  AlertSeverity
+  /// Chave estável do incidente, ex. "backup_late:job:<id>".
+  /// Índice único parcial (WHERE closed_at IS NULL) garante um alerta aberto por chave.
+  dedupeKey String
+
+  title   String
+  message String
+
+  clientId      String?
+  machineId     String?
+  backupJobId   String?
+  backupRunId   String?
+  /// Jobs atrasados absorvidos por um alerta de máquina offline (correlação).
+  relatedJobIds String[] @default([])
+  context       Json?
+
+  openedAt         DateTime  @default(now())
+  closedAt         DateTime?
+  acknowledgedAt   DateTime?
+  acknowledgedById String?
+
+  client         Client?             @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  machine        Machine?            @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  backupJob      BackupJob?          @relation(fields: [backupJobId], references: [id], onDelete: Cascade)
+  backupRun      BackupRun?          @relation(fields: [backupRunId], references: [id], onDelete: SetNull)
+  acknowledgedBy User?               @relation("AlertAcknowledgedBy", fields: [acknowledgedById], references: [id], onDelete: SetNull)
+  notifications  AlertNotification[]
+
+  @@index([closedAt, severity, openedAt(sort: Desc)])
+  @@index([dedupeKey])
+  @@index([openedAt(sort: Desc)])
+  @@map("alerts")
+}
+
+model AlertNotification {
+  id        String             @id @default(cuid())
+  alertId   String
+  channel   String             @default("telegram")
+  kind      NotificationKind
+  status    NotificationStatus @default(PENDING)
+  attempts  Int                @default(0)
+  lastError String?
+  sentAt    DateTime?
+  createdAt DateTime           @default(now())
+
+  alert Alert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+
+  @@unique([alertId, kind])
+  @@index([status, createdAt])
+  @@map("alert_notifications")
+}
+
+// ─── Operação ────────────────────────────────────────────────────────────────
+
+/// Limiares e switches configuráveis sem redeploy. Fallback é a env.
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+/// Quem vigia o vigia: cada ciclo do worker registra o que aconteceu.
+model SyncLog {
+  id             String    @id @default(cuid())
+  kind           SyncKind
+  startedAt      DateTime  @default(now())
+  finishedAt     DateTime?
+  ok             Boolean   @default(false)
+  itemsProcessed Int?
+  error          String?
+
+  @@index([kind, startedAt(sort: Desc)])
+  @@map("sync_logs")
+}
+
+/// Rate limit em Postgres (sem Redis por decisão de arquitetura).
+model RateLimitHit {
+  id          String   @id @default(cuid())
+  bucket      String // "login" | "ingest"
+  identifier  String // email+ip, token+ip...
+  windowStart DateTime
+  count       Int      @default(1)
+
+  @@unique([bucket, identifier, windowStart])
+  @@index([windowStart])
+  @@map("rate_limit_hits")
+}
