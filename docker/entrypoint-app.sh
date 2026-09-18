@@ -1,5 +1,10 @@
 #!/bin/sh
 set -e
+
+if [ "$#" -gt 0 ]; then
+  exec "$@"
+fi
+
 # As migrations são aplicadas pelo serviço "migrate" do compose, que usa a
 # imagem do worker (node_modules completo, com o CLI do Prisma). O app
 # standalone carrega só o necessário para servir.

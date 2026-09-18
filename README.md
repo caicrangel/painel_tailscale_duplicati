@@ -24,59 +24,155 @@ Sem Redis e sem fila externa: o Postgres é a única infra de estado.
 
 ---
 
-## 1. Setup local
+## 1. Rodar tudo em Docker (é o caminho normal)
 
-Pré-requisitos: Node 22+, Docker (ou um PostgreSQL 16 acessível).
+Você não precisa de Node, npm nem Postgres instalados na máquina — só Docker com
+o plugin Compose. Na sua VM:
 
 ```bash
-git clone <este-repositorio>
-cd painel_tailscale_duplicati
-npm install
-
+git clone <este-repositorio> /opt/painel
+cd /opt/painel
 cp .env.example .env
+nano .env                # veja o mínimo obrigatório logo abaixo
 ```
 
-Edite o `.env`. O mínimo para subir:
+Mínimo obrigatório no `.env` para a stack subir:
 
 ```bash
-DATABASE_URL="postgresql://painel:painel@localhost:5432/painel?schema=public"
-AUTH_SECRET="$(openssl rand -base64 32)"     # gere de verdade
+POSTGRES_PASSWORD="uma-senha-forte-do-banco"
+AUTH_SECRET="cole-aqui-o-resultado-de-openssl-rand-base64-32"
+
+# Endereço pelo qual as máquinas dos CLIENTES alcançam esta VM.
+APP_BASE_URL="http://100.x.y.z:3000"
+
+# Em qual interface publicar a porta 3000. Use o IP 100.x da tailnet desta VM.
+# O default (127.0.0.1) só aceita conexão da própria VM — as máquinas dos
+# clientes não conseguiriam entregar os relatórios.
+BIND_ADDRESS="100.x.y.z"
+
 SEED_ADMIN_EMAIL="voce@suaempresa.com.br"
-SEED_ADMIN_PASSWORD="uma-senha-de-12-ou-mais"
-APP_BASE_URL="http://localhost:3000"
+SEED_ADMIN_PASSWORD="senha-inicial-de-12-ou-mais"
 ```
 
-Suba o banco de desenvolvimento, aplique as migrations e crie o admin:
+Para gerar o `AUTH_SECRET`:
 
 ```bash
-docker compose -f docker-compose.dev.yml up -d
-npm run db:migrate
-npm run db:seed
+openssl rand -base64 32
 ```
 
-Rode a aplicação e o worker em terminais separados:
+Descubra o IP da tailnet desta VM com `tailscale ip -4`.
+
+Suba a stack:
 
 ```bash
-npm run dev          # http://localhost:3000
-npm run worker:dev   # crons de Tailscale, atraso, alertas e notificação
+docker compose up -d --build
 ```
 
-Entre com o e-mail e a senha do seed. **Troque a senha no primeiro login e apague
+Isso levanta quatro serviços, nesta ordem:
+
+| Serviço | O que faz |
+|---|---|
+| `postgres` | banco, em volume nomeado |
+| `migrate` | aplica as migrations e **sai** (passagem única) |
+| `app` | Next.js na porta 3000 |
+| `worker` | crons de Tailscale, atraso, alertas e notificação |
+
+`app` e `worker` só iniciam depois que o `migrate` termina com sucesso — não há
+corrida entre schema e aplicação.
+
+Crie o admin inicial (uma vez só):
+
+```bash
+docker compose run --rm worker npm run db:seed
+```
+
+Acompanhe:
+
+```bash
+docker compose ps
+docker compose logs -f worker
+curl http://127.0.0.1:3000/api/health     # {"ok":true,"db":"up"}
+```
+
+Acesse `http://<ip-da-tailnet>:3000` de qualquer máquina da tailnet e entre com o
+e-mail e a senha do seed. **Troque a senha no primeiro login e apague
 `SEED_ADMIN_PASSWORD` do `.env`.**
 
-### Dados de exemplo (opcional)
+### Comandos do dia a dia
 
-Para ver o dashboard com conteúdo antes de ligar os clientes reais:
+```bash
+docker compose logs -f worker              # ciclos do worker
+docker compose restart worker
+docker compose up -d --build               # aplicar uma atualização do código
+docker compose down                        # parar (o volume do banco fica)
+docker compose exec postgres pg_dump -U painel painel > backup-painel.sql
+```
+
+Qualquer comando pontual roda na imagem do worker, que tem o `node_modules`
+completo:
+
+```bash
+docker compose run --rm worker npm run db:seed
+docker compose run --rm worker npx prisma migrate status
+docker compose run --rm worker npx tsx scripts/dev-dados-exemplo.mts   # dados fictícios
+```
+
+### Ligar Tailscale e Telegram
+
+Não são obrigatórios para subir, mas sem eles o sistema fica pela metade: sem o
+Tailscale não há status de máquina, e sem o Telegram os alertas só existem na
+tela. Acrescente ao `.env` e rode `docker compose up -d`:
+
+```bash
+TAILSCALE_OAUTH_CLIENT_ID="..."
+TAILSCALE_OAUTH_CLIENT_SECRET="..."
+TAILSCALE_TAILNET="-"
+MAGICDNS_DOMAIN="tailXXXX.ts.net"
+
+TELEGRAM_BOT_TOKEN="..."
+TELEGRAM_CHAT_ID="..."
+TELEGRAM_ENABLED="true"
+```
+
+O worker avisa no log quando o Tailscale não está configurado, e desativa só
+aquela tarefa — o resto continua rodando.
+
+### Exposição na rede
+
+O `BIND_ADDRESS` faz o Docker publicar a porta 3000 apenas no IP informado.
+Publique no IP da tailnet, nunca em `0.0.0.0`, e não abra a porta no firewall
+externo: o sistema não foi feito para exposição pública.
+
+Rodamos HTTP puro dentro da tailnet, que já é criptografada ponta a ponta. Se você
+colocar um proxy com TLS na frente (por exemplo Caddy com `tailscale cert`), ligue
+`AUTH_COOKIE_SECURE=true` no `.env`.
+
+---
+
+## 1b. Desenvolvimento sem Docker (opcional)
+
+Só se você for mexer no código. Precisa de Node 22+.
+
+```bash
+npm install
+cp .env.example .env      # DATABASE_URL apontando para localhost
+docker compose -f docker-compose.dev.yml up -d    # só o Postgres
+npm run db:migrate
+npm run db:seed
+npm run dev          # terminal 1 — http://localhost:3000
+npm run worker:dev   # terminal 2
+```
+
+Dados de exemplo para ver o dashboard com conteúdo (3 clientes, 6 máquinas, 6 jobs
+com 14 dias de histórico, incluindo um job atrasado e uma máquina offline):
 
 ```bash
 npx tsx scripts/dev-dados-exemplo.mts
 ```
 
-Cria 3 clientes, 6 máquinas e 6 jobs com 14 dias de histórico — incluindo um job
-atrasado e uma máquina offline, para você ver como o alerta aparece.
-**Nunca rode isso em produção**: o script apaga e recria os registros de exemplo.
+**Nunca rode em produção**: o script apaga e recria os registros de exemplo.
 
-### Testes e verificações
+Testes e verificações:
 
 ```bash
 npm test         # Vitest — parsing do Duplicati, cálculo de atraso, dedupe de alertas
@@ -86,74 +182,31 @@ npm run typecheck
 
 ---
 
-## 2. Deploy com Docker Compose
+## 2. Referência das variáveis de ambiente
 
-No servidor Linux dentro da tailnet:
+Todas moram no `.env` (modelo completo em `.env.example`). O `.env` **não** é
+interpolado pelo shell: cole valores literais, não `$(comandos)`.
 
-```bash
-git clone <este-repositorio> /opt/painel
-cd /opt/painel
-cp .env.example .env
-```
+| Variável | Obrigatória | Para que serve |
+|---|---|---|
+| `POSTGRES_PASSWORD` | sim | senha do banco; o compose monta o `DATABASE_URL` a partir dela |
+| `AUTH_SECRET` | sim | assina a sessão. Gere com `openssl rand -base64 32` e cole o resultado |
+| `APP_BASE_URL` | sim | endereço pelo qual as máquinas dos clientes alcançam o painel; é a base do snippet do Duplicati |
+| `BIND_ADDRESS` | sim na VM | IP onde publicar a porta 3000. Default `127.0.0.1` (só a própria VM) |
+| `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | no primeiro uso | admin inicial criado pelo seed. Apague a senha do `.env` depois |
+| `TZ` | não | default `America/Sao_Paulo` |
+| `AUTH_COOKIE_SECURE` | não | `true` só se houver HTTPS na frente |
+| `TAILSCALE_OAUTH_CLIENT_ID` / `_SECRET` | para o status das máquinas | OAuth client com escopo `devices:core:read` |
+| `TAILSCALE_TAILNET` | não | default `-` (a tailnet do próprio OAuth client) |
+| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` / `TELEGRAM_ENABLED` | para os alertas | bot e chat global |
+| `MACHINE_ONLINE_MAX_MINUTES` / `MACHINE_IDLE_MAX_MINUTES` | não | limiares de online/ociosa/offline (5 e 60) |
+| `DEFAULT_JOB_INTERVAL_MINUTES` / `DEFAULT_JOB_TOLERANCE_MINUTES` | não | frequência e tolerância que um job novo recebe (1440 e 360) |
+| `ALERT_ON_WARNING` | não | `true` para alertar também em warning (default `false`) |
+| `INGEST_RATE_LIMIT_PER_MINUTE` | não | teto de relatórios por token+IP (60) |
+| `RAW_PAYLOAD_RETENTION_DAYS` | não | `0` = nunca expurgar o payload bruto (default da Fase 1) |
 
-Configure o `.env` de produção:
-
-```bash
-POSTGRES_PASSWORD="senha-forte-do-banco"
-AUTH_SECRET="$(openssl rand -base64 32)"
-TZ="America/Sao_Paulo"
-
-# O endereço pelo qual as máquinas dos CLIENTES alcançam este servidor.
-# Use o nome MagicDNS ou o IP 100.x da tailnet — nunca um endereço público.
-APP_BASE_URL="http://painel.tailXXXX.ts.net:3000"
-
-# Publica a porta 3000 somente na interface da tailnet.
-BIND_ADDRESS="100.x.y.z"
-
-TAILSCALE_OAUTH_CLIENT_ID="..."
-TAILSCALE_OAUTH_CLIENT_SECRET="..."
-TAILSCALE_TAILNET="-"
-MAGICDNS_DOMAIN="tailXXXX.ts.net"
-
-TELEGRAM_BOT_TOKEN="..."
-TELEGRAM_CHAT_ID="..."
-TELEGRAM_ENABLED="true"
-
-SEED_ADMIN_EMAIL="voce@suaempresa.com.br"
-SEED_ADMIN_PASSWORD="senha-inicial-forte"
-```
-
-Suba tudo:
-
-```bash
-docker compose up -d --build
-docker compose run --rm worker node_modules/.bin/tsx prisma/seed.ts   # admin inicial
-docker compose logs -f worker
-```
-
-As migrations são aplicadas pelo serviço `migrate`, que roda uma vez e sai; `app` e
-`worker` só sobem depois que ele termina com sucesso.
-
-**Exposição.** O `BIND_ADDRESS` faz o Docker publicar a porta 3000 apenas no IP
-da tailnet. Sem isso, o compose publica em `127.0.0.1` e as máquinas dos clientes
-não conseguem entregar os relatórios. Não publique em `0.0.0.0` e não abra a porta
-no firewall externo — o sistema não foi pensado para exposição pública.
-
-**HTTPS.** Rodamos HTTP puro dentro da tailnet, que já é criptografada ponta a
-ponta. Se você colocar um proxy com TLS na frente (por exemplo Caddy com
-`tailscale cert`), ligue `AUTH_COOKIE_SECURE=true`.
-
-### Operação
-
-```bash
-docker compose ps
-docker compose logs -f worker           # ciclos do worker
-docker compose restart worker
-docker compose exec postgres pg_dump -U painel painel > backup-painel.sql
-```
-
-A tela de Dashboard mostra um aviso quando algum ciclo do worker não roda há mais
-de 15 minutos ou falhou — é o "quem vigia o vigia".
+Limiares também podem ser alterados sem redeploy pela tabela `settings`, que
+sobrescreve a env.
 
 ---
 

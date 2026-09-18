@@ -17,7 +17,7 @@ RUN npx prisma generate && npm run build
 FROM node:22-alpine AS app
 WORKDIR /app
 ENV NODE_ENV=production
-RUN apk add --no-cache openssl tini && addgroup -g 1001 nodejs && adduser -u 1001 -G nodejs -S nextjs
+RUN apk add --no-cache openssl libc6-compat tini && addgroup -g 1001 nodejs && adduser -u 1001 -G nodejs -S nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
@@ -31,7 +31,7 @@ ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/entrypoint-app.sh"]
 FROM node:22-alpine AS worker
 WORKDIR /app
 ENV NODE_ENV=production
-RUN apk add --no-cache openssl tini
+RUN apk add --no-cache openssl libc6-compat tini
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
