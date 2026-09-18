@@ -1,0 +1,9 @@
+{
+  "Data": {
+    "ParsedResult": "Fatal",
+    "MainOperation": "Backup",
+    "Errors": ["Failed to connect to S3: The request signature we calculated does not match"],
+    "ErrorsActualLength": 1
+  },
+  "Extra": { "backup-name": "Banco de Dados" }
+}

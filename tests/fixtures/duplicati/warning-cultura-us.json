@@ -1,0 +1,23 @@
+{
+  "Data": {
+    "MainOperation": "Backup",
+    "ParsedResult": "Warning",
+    "Version": "2.0.7.1 (2.0.7.1_beta_2023-05-25)",
+    "BeginTime": "9/17/2026 11:00:00 PM",
+    "EndTime": "9/17/2026 11:42:07 PM",
+    "Duration": "00:42:07.0210000",
+    "ExaminedFiles": "9120",
+    "AddedFiles": "4",
+    "SizeOfExaminedFiles": "9812345678",
+    "Warnings": ["Arquivo em uso ignorado: C:\\pagefile.sys"],
+    "Errors": [],
+    "WarningsActualLength": 3,
+    "ErrorsActualLength": 0,
+    "BackendStatistics": { "BytesUploaded": "104857600", "KnownFileSize": "20000000000" }
+  },
+  "Extra": {
+    "machine-name": "DESKTOP-CONTABIL",
+    "backup-name": "Documentos",
+    "backup-id": "DB-1"
+  }
+}
