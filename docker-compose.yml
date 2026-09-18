@@ -15,6 +15,21 @@ services:
       timeout: 5s
       retries: 10
 
+  # Serviço de passagem única: aplica as migrations e sai. app e worker só
+  # sobem depois que ele termina com sucesso.
+  migrate:
+    build:
+      context: .
+      target: worker
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-painel}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-painel}?schema=public
+    entrypoint: ["/sbin/tini", "--", "/usr/local/bin/entrypoint-migrate.sh"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   app:
     build:
       context: .
@@ -29,8 +44,8 @@ services:
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:3000:3000"
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
   worker:
     build:
@@ -41,10 +56,8 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-painel}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-painel}?schema=public
     depends_on:
-      postgres:
-        condition: service_healthy
-      app:
-        condition: service_started
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   postgres-data:

@@ -21,11 +21,6 @@ RUN apk add --no-cache openssl tini && addgroup -g 1001 nodejs && adduser -u 100
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-# prisma CLI + schema para rodar migrate deploy no start
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/prisma ./prisma
 COPY docker/entrypoint-app.sh /usr/local/bin/entrypoint-app.sh
 RUN chmod +x /usr/local/bin/entrypoint-app.sh
 USER nextjs
@@ -40,6 +35,6 @@ RUN apk add --no-cache openssl tini
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
-COPY docker/entrypoint-worker.sh /usr/local/bin/entrypoint-worker.sh
-RUN chmod +x /usr/local/bin/entrypoint-worker.sh
+COPY docker/entrypoint-worker.sh docker/entrypoint-migrate.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/entrypoint-worker.sh /usr/local/bin/entrypoint-migrate.sh
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/entrypoint-worker.sh"]

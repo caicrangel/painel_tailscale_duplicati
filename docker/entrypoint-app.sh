@@ -1,6 +1,7 @@
 #!/bin/sh
 set -e
-echo "[app] aplicando migrations..."
-./node_modules/.bin/prisma migrate deploy
-echo "[app] migrations ok, subindo Next na :3000"
+# As migrations são aplicadas pelo serviço "migrate" do compose, que usa a
+# imagem do worker (node_modules completo, com o CLI do Prisma). O app
+# standalone carrega só o necessário para servir.
+echo "[app] subindo Next na :3000"
 exec node server.js

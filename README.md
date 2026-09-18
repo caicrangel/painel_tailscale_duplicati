@@ -127,11 +127,12 @@ Suba tudo:
 
 ```bash
 docker compose up -d --build
-docker compose exec app node_modules/.bin/tsx prisma/seed.ts   # admin inicial
+docker compose run --rm worker node_modules/.bin/tsx prisma/seed.ts   # admin inicial
 docker compose logs -f worker
 ```
 
-As migrations são aplicadas automaticamente pelo container `app` no start.
+As migrations são aplicadas pelo serviço `migrate`, que roda uma vez e sai; `app` e
+`worker` só sobem depois que ele termina com sucesso.
 
 **Exposição.** O `BIND_ADDRESS` faz o Docker publicar a porta 3000 apenas no IP
 da tailnet. Sem isso, o compose publica em `127.0.0.1` e as máquinas dos clientes
