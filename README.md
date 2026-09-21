@@ -86,6 +86,19 @@ Crie o admin inicial (uma vez só):
 docker compose run --rm worker npm run db:seed
 ```
 
+A saída diz o que aconteceu: `[seed] admin criado: <email>`, ou
+`[seed] admin <email> já existe`, ou um erro explicando o que faltou. Se não
+aparecer `admin criado`, nenhum usuário foi gravado e o login vai recusar.
+
+**Perdeu o acesso ou a senha ficou errada?** O seed não mexe em usuário que já
+existe. Para sobrescrever a senha (ou criar um admin do zero):
+
+```bash
+docker compose run --rm worker npx tsx scripts/definir-senha-admin.mts seu@email.com 'sua-senha'
+```
+
+Use **aspas simples** na senha: `&`, `$` e `!` são interpretados pelo shell.
+
 Acompanhe:
 
 ```bash
