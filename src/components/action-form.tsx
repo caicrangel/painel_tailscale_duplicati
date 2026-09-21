@@ -18,6 +18,7 @@ export function ActionForm({
   successMessage,
   className,
   extraActions,
+  onSuccess,
 }: {
   action: (formData: FormData) => Promise<Resultado>;
   children: React.ReactNode;
@@ -26,6 +27,8 @@ export function ActionForm({
   successMessage?: string;
   className?: string;
   extraActions?: React.ReactNode;
+  /** Chamado depois de uma execução bem-sucedida (ex.: fechar o diálogo). */
+  onSuccess?: () => void;
 }) {
   const [erro, setErro] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState<string | null>(null);
@@ -48,6 +51,7 @@ export function ActionForm({
           }
           setSucesso(successMessage ?? "Alterações salvas.");
           router.refresh();
+          onSuccess?.();
         });
       }}
     >

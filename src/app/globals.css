@@ -86,5 +86,21 @@ body {
 
 ::selection { background: var(--color-info); color: #fff; }
 
+/* Diálogo nativo: centralizado e sem a borda padrão do navegador. */
+dialog {
+  margin: auto;
+  border: none;
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.55);
+  backdrop-filter: blur(2px);
+}
+
+/* Enquanto um diálogo está aberto, a página atrás não rola. */
+body:has(dialog[open]) {
+  overflow: hidden;
+}
+
 /* Scrollbar discreta, combinando com o tema */
 * { scrollbar-width: thin; scrollbar-color: var(--color-border) transparent; }
