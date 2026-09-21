@@ -1,14 +1,18 @@
-import { getResumoConfig, getTelegramConfig } from "@/lib/config/integracoes";
+import { getExecucaoConfig, getResumoConfig, getTelegramConfig } from "@/lib/config/integracoes";
 import { requireRole } from "@/lib/auth/guards";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ResumoForm, TelegramForm } from "./forms";
+import { ExecucaoForm, ResumoForm, TelegramForm } from "./forms";
 
 export const dynamic = "force-dynamic";
 
 export default async function TelegramPage() {
   await requireRole("ADMIN");
-  const [telegram, resumo] = await Promise.all([getTelegramConfig(), getResumoConfig()]);
+  const [telegram, resumo, execucao] = await Promise.all([
+    getTelegramConfig(),
+    getResumoConfig(),
+    getExecucaoConfig(),
+  ]);
 
   const prontoParaUso = telegram.botToken !== null && telegram.chatId !== null;
 
@@ -51,10 +55,32 @@ export default async function TelegramPage() {
 
       <Card className="lg:col-span-2">
         <CardHeader>
+          <CardTitle>Aviso a cada execução</CardTitle>
+          <Badge tone={execucao.enabled ? "ok" : "neutral"} dot>
+            {execucao.enabled ? "ativo" : "desligado"}
+          </Badge>
+        </CardHeader>
+        <CardBody>
+          <ExecucaoForm
+            enabled={execucao.enabled}
+            escopo={execucao.escopo}
+            porTelegram={execucao.porTelegram}
+            porEmail={execucao.porEmail}
+          />
+        </CardBody>
+      </Card>
+
+      <Card className="lg:col-span-2">
+        <CardHeader>
           <CardTitle>Quando o painel manda mensagem</CardTitle>
         </CardHeader>
         <CardBody>
           <ul className="space-y-2 text-sm text-[var(--color-muted)]">
+            <li>
+              <strong className="text-[var(--color-fg)]">Backup concluído</strong> — o recibo acima,
+              com o nome do cliente, o que foi examinado e enviado. Opcional, e é o único aviso que
+              sai também quando está tudo certo.
+            </li>
             <li>
               <strong className="text-[var(--color-fg)]">Backup com erro</strong> — assim que um
               relatório chega com resultado Error ou Fatal.

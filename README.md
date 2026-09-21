@@ -392,6 +392,40 @@ credenciais de infraestrutura, não configuração de operação.
 
 ---
 
+## 4c. Aviso a cada backup concluído
+
+Além dos alertas (que só falam quando algo dá errado), o painel pode mandar um
+**recibo por execução**: uma mensagem a cada backup concluído, nomeando o cliente.
+Serve para saber que o backup das 19h daquela empresa aconteceu, sem abrir o painel.
+
+Ligue em **Configurações → Telegram → Aviso a cada execução**. A mensagem sai assim:
+
+```
+✅ Backup concluído — Contabilidade Modelo
+
+Tarefa: Dados Fiscais
+Máquina: srv-fiscal-01
+Resultado: Sucesso
+Duração: 12min 44s
+Janela: 00:00 → 00:12
+
+Arquivos: examinados 48.213 · adicionados 15 · alterados 12
+Destino: enviado 2,30 GB · total no destino 384,0 GB · 30 versões
+```
+
+Warning e erro trazem também as mensagens do Duplicati, para o recibo não virar
+só uma cor.
+
+**Escopo.** Erro e atraso já geram alerta próprio, então "todas as execuções"
+significa duas mensagens quando um backup falha. Se você quer só a confirmação de
+que rodou, escolha **somente as bem-sucedidas**.
+
+**Quando chega.** Em até 1 minuto depois do relatório. A ingestão responde na hora
+ao Duplicati e o envio fica por conta do worker — um canal lento nunca pode virar
+timeout do lado do cliente. Reenvio do mesmo relatório não gera novo recibo.
+
+---
+
 ## 5. Alertas
 
 Disparam por: job com erro/fatal, job atrasado e máquina offline.

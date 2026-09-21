@@ -290,8 +290,9 @@ model BackupRun {
 
   receivedAt DateTime @default(now())
 
-  backupJob BackupJob @relation(fields: [backupJobId], references: [id], onDelete: Cascade)
-  alerts    Alert[]
+  backupJob     BackupJob         @relation(fields: [backupJobId], references: [id], onDelete: Cascade)
+  alerts        Alert[]
+  notifications RunNotification[]
 
   @@unique([backupJobId, beginTime, endTime])
   @@index([backupJobId, receivedAt(sort: Desc)])
@@ -337,6 +338,28 @@ model Alert {
   @@index([dedupeKey])
   @@index([openedAt(sort: Desc)])
   @@map("alerts")
+}
+
+/// Recibo de execução: a mensagem de "rodou, e deu isto" enviada a cada backup
+/// concluído. Separada de AlertNotification de propósito — um recibo não é um
+/// incidente: não abre, não fecha, não deduplica, e some do radar depois de
+/// enviado. Misturar os dois na mesma fila obrigaria a tabela de incidentes a
+/// aceitar linhas sem incidente.
+model RunNotification {
+  id          String             @id @default(cuid())
+  backupRunId String
+  channel     String             @default("telegram")
+  status      NotificationStatus @default(PENDING)
+  attempts    Int                @default(0)
+  lastError   String?
+  sentAt      DateTime?
+  createdAt   DateTime           @default(now())
+
+  backupRun BackupRun @relation(fields: [backupRunId], references: [id], onDelete: Cascade)
+
+  @@unique([backupRunId, channel])
+  @@index([status, createdAt])
+  @@map("run_notifications")
 }
 
 model AlertNotification {

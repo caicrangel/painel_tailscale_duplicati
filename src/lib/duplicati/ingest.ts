@@ -4,6 +4,8 @@ import { calcularStatusJob, carenciaInicial } from "@/lib/jobs/late";
 import type { RelatorioDuplicati } from "./payload";
 import { chaveDoJob, maquinaCasa, normalizarHostname } from "./match";
 import type { AppSettings } from "@/lib/config/settings";
+import { getExecucaoConfig } from "@/lib/config/integracoes";
+import { deveEnviarRecibo } from "@/lib/alerts/execucao";
 
 /** Máquina-balde para relatórios que não trazem identificação nenhuma. */
 export const HOSTNAME_NAO_IDENTIFICADO = "maquina-nao-identificada";
@@ -213,6 +215,13 @@ export async function registrarRelatorio(params: {
     });
   }
 
+  // Recibo de execução: enfileira aqui, envia no worker. A resposta ao
+  // Duplicati não pode esperar o Telegram — o contrato desta rota é responder
+  // rápido, e um canal lento não pode virar timeout do lado do cliente.
+  if (!duplicado) {
+    await enfileirarRecibo(runId, relatorio.parsedResult);
+  }
+
   return {
     machineId,
     backupJobId: job.id,
@@ -220,4 +229,31 @@ export async function registrarRelatorio(params: {
     duplicado,
     maquinaCriada: criada,
   };
+}
+
+/** Cria um recibo pendente por canal habilitado, se a configuração pedir. */
+async function enfileirarRecibo(
+  backupRunId: string,
+  parsedResult: RelatorioDuplicati["parsedResult"],
+): Promise<void> {
+  try {
+    const config = await getExecucaoConfig();
+    if (!config.enabled) return;
+    if (!deveEnviarRecibo(parsedResult, config.escopo)) return;
+
+    const canais = [
+      ...(config.porTelegram ? ["telegram"] : []),
+      ...(config.porEmail ? ["email"] : []),
+    ];
+    if (canais.length === 0) return;
+
+    await prisma.runNotification.createMany({
+      data: canais.map((channel) => ({ backupRunId, channel })),
+      skipDuplicates: true,
+    });
+  } catch (erro) {
+    // Falha ao enfileirar o aviso não pode derrubar a ingestão: o relatório já
+    // está gravado, e é ele que sustenta o monitoramento.
+    console.error("[ingest] não foi possível enfileirar o recibo de execução", erro);
+  }
 }

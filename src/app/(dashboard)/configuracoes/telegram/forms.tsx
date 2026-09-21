@@ -6,6 +6,7 @@ import { SwitchField } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   enviarResumoTeste,
+  salvarExecucao,
   salvarResumo,
   salvarTelegram,
   testarTelegram,
@@ -139,6 +140,62 @@ export function ResumoForm({
         <p className="text-xs text-[var(--color-muted)]">
           Se o worker estiver fora do ar no horário exato, o resumo sai no próximo ciclo do dia —
           atrasado é melhor que nenhum. <Badge tone="neutral">uma vez por dia</Badge>
+        </p>
+      </div>
+    </ActionForm>
+  );
+}
+
+export function ExecucaoForm({
+  enabled,
+  escopo,
+  porTelegram,
+  porEmail,
+}: {
+  enabled: boolean;
+  escopo: "TODAS" | "SOMENTE_SUCESSO" | "SOMENTE_FALHAS";
+  porTelegram: boolean;
+  porEmail: boolean;
+}) {
+  return (
+    <ActionForm
+      action={salvarExecucao}
+      submitLabel="Salvar avisos"
+      successMessage="Configuração salva. Vale para as próximas execuções."
+    >
+      <div className="space-y-5">
+        <SwitchField
+          name="enabled"
+          label="Avisar a cada backup concluído"
+          hint="Uma mensagem por execução, nomeando o cliente — serve para saber que o backup daquele horário aconteceu."
+          defaultChecked={enabled}
+        />
+
+        <Field
+          label="Quais execuções"
+          hint="Erros e atrasos já geram alerta próprio. Se você quer só a confirmação de que rodou, escolha somente as bem-sucedidas para não receber duas mensagens do mesmo problema."
+        >
+          <Select name="escopo" defaultValue={escopo}>
+            <option value="TODAS">Todas as execuções</option>
+            <option value="SOMENTE_SUCESSO">Somente as bem-sucedidas</option>
+            <option value="SOMENTE_FALHAS">Somente as que deram warning ou erro</option>
+          </Select>
+        </Field>
+
+        <div className="space-y-2">
+          <SwitchField name="porTelegram" label="Enviar pelo Telegram" defaultChecked={porTelegram} />
+          <SwitchField
+            name="porEmail"
+            label="Enviar por e-mail"
+            hint="Exige o SMTP configurado na aba E-mail."
+            defaultChecked={porEmail}
+          />
+        </div>
+
+        <p className="text-xs text-[var(--color-muted)]">
+          A mensagem sai em até 1 minuto depois que o relatório chega: a ingestão responde na hora
+          ao Duplicati e o envio fica por conta do worker, para um canal lento nunca virar timeout
+          do lado do cliente.
         </p>
       </div>
     </ActionForm>

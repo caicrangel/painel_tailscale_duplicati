@@ -8,6 +8,7 @@ import { guardAction, type ActionResult } from "@/lib/auth/guards";
 import { primeiroErro } from "@/lib/validation/schemas";
 import {
   getResumoConfig,
+  salvarExecucaoConfig,
   salvarResumoConfig,
   salvarSmtpConfig,
   salvarTelegramConfig,
@@ -211,6 +212,44 @@ export async function enviarResumoTeste(): Promise<ActionResult> {
   });
 
   return r.ok ? { ok: true, data: undefined } : { ok: false, error: r.erro ?? "Falha no envio." };
+}
+
+// ─── Recibo de execução ──────────────────────────────────────────────────────
+
+export async function salvarExecucao(formData: FormData): Promise<ActionResult> {
+  const guard = await guardAction("ADMIN");
+  if (!guard.ok) return guard;
+
+  const escopo = String(formData.get("escopo") ?? "TODAS");
+  if (!["TODAS", "SOMENTE_SUCESSO", "SOMENTE_FALHAS"].includes(escopo)) {
+    return { ok: false, error: "Escopo inválido." };
+  }
+
+  const enabled = bool(formData, "enabled");
+  const porTelegram = bool(formData, "porTelegram");
+  const porEmail = bool(formData, "porEmail");
+
+  if (enabled && !porTelegram && !porEmail) {
+    return { ok: false, error: "Escolha ao menos um canal para receber os avisos." };
+  }
+
+  await salvarExecucaoConfig({
+    enabled,
+    escopo: escopo as "TODAS" | "SOMENTE_SUCESSO" | "SOMENTE_FALHAS",
+    porTelegram,
+    porEmail,
+  });
+
+  await audit({
+    userId: guard.user.id,
+    userEmail: guard.user.email,
+    action: "configuracao.execucao_salva",
+    entityType: "Setting",
+    metadata: { enabled, escopo, porTelegram, porEmail },
+  });
+
+  revalidatePath("/configuracoes/telegram");
+  return { ok: true, data: undefined };
 }
 
 // ─── Monitoramento (limiares) ────────────────────────────────────────────────

@@ -17,6 +17,7 @@ import { cifrar, decifrar, ehSegredoCifrado, type SegredoCifrado } from "./secre
 const CHAVE_TELEGRAM = "integracao.telegram";
 const CHAVE_SMTP = "integracao.smtp";
 const CHAVE_RESUMO = "integracao.resumo";
+const CHAVE_EXECUCAO = "integracao.execucao";
 
 // ─── Telegram ────────────────────────────────────────────────────────────────
 
@@ -194,6 +195,39 @@ export async function salvarResumoConfig(input: ResumoConfig): Promise<void> {
   await prisma.setting.upsert({
     where: { key: CHAVE_RESUMO },
     create: { key: CHAVE_RESUMO, value: valor as never },
+    update: { value: valor as never },
+  });
+}
+
+// ─── Recibo de execução ──────────────────────────────────────────────────────
+
+export type EscopoRecibo = "TODAS" | "SOMENTE_SUCESSO" | "SOMENTE_FALHAS";
+
+export type ExecucaoConfig = {
+  enabled: boolean;
+  escopo: EscopoRecibo;
+  porTelegram: boolean;
+  porEmail: boolean;
+};
+
+const execucaoArmazenada = z.object({
+  enabled: z.boolean().default(false),
+  escopo: z.enum(["TODAS", "SOMENTE_SUCESSO", "SOMENTE_FALHAS"]).default("TODAS"),
+  porTelegram: z.boolean().default(true),
+  porEmail: z.boolean().default(false),
+});
+
+export async function getExecucaoConfig(): Promise<ExecucaoConfig> {
+  const linha = await prisma.setting.findUnique({ where: { key: CHAVE_EXECUCAO } });
+  const parsed = execucaoArmazenada.safeParse(linha?.value ?? {});
+  return parsed.success ? parsed.data : execucaoArmazenada.parse({});
+}
+
+export async function salvarExecucaoConfig(input: ExecucaoConfig): Promise<void> {
+  const valor = execucaoArmazenada.parse(input);
+  await prisma.setting.upsert({
+    where: { key: CHAVE_EXECUCAO },
+    create: { key: CHAVE_EXECUCAO, value: valor as never },
     update: { value: valor as never },
   });
 }
