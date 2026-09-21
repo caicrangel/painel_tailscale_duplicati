@@ -167,7 +167,7 @@ async function despacharRecibos(agora: Date): Promise<number> {
         ? await enviarEmail({
             assunto: recibo.titulo,
             texto: recibo.texto,
-            html: montarHtml(recibo.titulo, escaparHtmlEmail(recibo.texto)),
+            html: montarHtml(recibo.titulo, escaparHtmlEmail(recibo.texto), true),
           })
         : await enviarTelegram({
             texto: recibo.html,

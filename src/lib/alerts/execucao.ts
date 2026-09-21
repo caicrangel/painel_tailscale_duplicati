@@ -88,6 +88,74 @@ function numero(n: number | null): string | null {
   return n === null ? null : n.toLocaleString("pt-BR");
 }
 
+// ─── Montagem do bloco tabular ───────────────────────────────────────────────
+
+/**
+ * As linhas de detalhe vão num bloco monoespaçado (<pre> no Telegram).
+ * É o que faz as colunas de quantidade e tamanho alinharem — em fonte
+ * proporcional, "1" e "461078" ocupam larguras diferentes e a coluna entorta.
+ *
+ * Emoji fica só nos cabeçalhos de seção: dentro das linhas de dados, a largura
+ * de um emoji varia por plataforma e desalinharia tudo o que vem depois.
+ */
+const LARGURA_ROTULO = 20;
+const LARGURA_QTDE = 9;
+const LARGURA_TAM = 12;
+
+const SELETOR_VARIACAO = 0xfe0f;
+const JUNTOR_LARGURA_ZERO = 0x200d;
+
+/**
+ * Largura visual em colunas de fonte monoespaçada.
+ *
+ * `padEnd` conta unidades UTF-16, e por isso erra com emoji: "✅" ocupa 1
+ * unidade, "🖥️" ocupa 3 (par substituto + seletor de variação) — e as duas
+ * ocupam 2 colunas na tela. Alinhar com padEnd deixa cada linha com um
+ * deslocamento diferente, que foi exatamente o que entortou a tabela.
+ */
+export function larguraVisual(texto: string): number {
+  let largura = 0;
+  for (const caractere of texto) {
+    const cp = caractere.codePointAt(0) ?? 0;
+    if (cp === SELETOR_VARIACAO || cp === JUNTOR_LARGURA_ZERO) continue;
+    const ehEmoji =
+      cp >= 0x1f000 || (cp >= 0x2600 && cp <= 0x27bf) || (cp >= 0x2b00 && cp <= 0x2bff) ||
+      (cp >= 0x2300 && cp <= 0x23ff && texto.includes("\u{FE0F}"));
+    largura += ehEmoji ? 2 : 1;
+  }
+  return largura;
+}
+
+function preencherFim(texto: string, largura: number): string {
+  return texto + " ".repeat(Math.max(0, largura - larguraVisual(texto)));
+}
+
+function preencherInicio(texto: string, largura: number): string {
+  return " ".repeat(Math.max(0, largura - larguraVisual(texto))) + texto;
+}
+
+function linhaTabela(rotulo: string, qtde: string | null, tamanho?: string | null): string {
+  const inicio = preencherFim(`  ${rotulo}`, LARGURA_ROTULO);
+  const meio = preencherInicio(qtde ?? "-", LARGURA_QTDE);
+  if (tamanho === undefined) return `${inicio}${meio}`;
+  return `${inicio}${meio}${preencherInicio(tamanho ?? "-", LARGURA_TAM)}`;
+}
+
+function cabecalhoTabela(titulo: string, comTamanho: boolean): string {
+  const inicio = preencherFim(titulo, LARGURA_ROTULO);
+  const qtde = preencherInicio("qtde", LARGURA_QTDE);
+  return comTamanho ? `${inicio}${qtde}${preencherInicio("tam.", LARGURA_TAM)}` : `${inicio}${qtde}`;
+}
+
+/** Linha de valor único, alinhada à direita na mesma régua das tabelas. */
+function linhaValor(rotulo: string, valor: string): string {
+  return `${preencherFim(`  ${rotulo}`, LARGURA_ROTULO)}${preencherInicio(valor, LARGURA_QTDE + LARGURA_TAM)}`;
+}
+
+function campo(rotulo: string, valor: string): string {
+  return `${preencherFim(`${rotulo}:`, LARGURA_ROTULO)}${valor}`;
+}
+
 export function formatarRecibo(
   dados: DadosExecucao,
   timeZone = "America/Sao_Paulo",
@@ -97,16 +165,8 @@ export function formatarRecibo(
   const item = (secao: string, rotulo: string) =>
     resumo.secoes.find((s) => s.titulo === secao)?.itens.find((i) => i.rotulo === rotulo);
 
-  const examinados = numero(item("Arquivos", "Examinados")?.quantidade ?? null);
-  const adicionados = numero(item("Arquivos", "Adicionados")?.quantidade ?? null);
-  const alterados = numero(item("Arquivos", "Alterados")?.quantidade ?? null);
-  const excluidos = numero(item("Arquivos", "Excluídos")?.quantidade ?? null);
-
-  const enviado =
-    bytesLegiveis(item("Destino", "Enviado")?.bytes ?? null) ??
-    bytesLegiveis(dados.bytesUploaded);
-  const totalDestino = bytesLegiveis(item("Destino", "Tamanho total no destino")?.bytes ?? null);
-  const versoes = numero(item("Destino", "Versões guardadas")?.quantidade ?? null);
+  const qtde = (secao: string, rotulo: string) => numero(item(secao, rotulo)?.quantidade ?? null);
+  const tam = (secao: string, rotulo: string) => bytesLegiveis(item(secao, rotulo)?.bytes ?? null);
 
   const duracao = duracaoLegivel(resumo.duracaoSegundos ?? dados.durationSeconds);
   const inicio = hora(resumo.inicio, timeZone);
@@ -115,51 +175,80 @@ export function formatarRecibo(
   // O cliente vem primeiro: no chat, a mensagem precisa se identificar sozinha.
   const titulo = `${EMOJI[dados.parsedResult]} Backup concluído — ${dados.cliente ?? "sem cliente"}`;
 
-  const linhas: string[] = [titulo, ""];
-  linhas.push(`Tarefa: ${dados.job}`);
-  linhas.push(`Máquina: ${dados.maquina}`);
-  linhas.push(`Resultado: ${RESULTADO[dados.parsedResult]}`);
-  if (duracao) linhas.push(`Duração: ${duracao}`);
-  if (inicio && fim) linhas.push(`Janela: ${inicio} → ${fim}`);
-  else if (fim) linhas.push(`Concluído às ${fim}`);
+  // ── Cabeçalho da execução ──
+  const bloco: string[] = [];
+  bloco.push(campo("📋 Tarefa", dados.job));
+  bloco.push(campo("🖥️ Máquina", dados.maquina));
+  if (resumo.operacao) bloco.push(campo("⚙️ Operação", resumo.operacao));
+  bloco.push(campo(`${EMOJI[dados.parsedResult]} Resultado`, RESULTADO[dados.parsedResult]));
+  if (duracao) bloco.push(campo("⏱️ Duração", duracao));
+  if (inicio && fim) bloco.push(campo("🕐 Janela", `${inicio} → ${fim}`));
+  else if (fim) bloco.push(campo("🕐 Concluído", fim));
 
-  const arquivos = [
-    examinados && `examinados ${examinados}`,
-    adicionados && `adicionados ${adicionados}`,
-    alterados && `alterados ${alterados}`,
-    excluidos && excluidos !== "0" && `excluídos ${excluidos}`,
-  ].filter(Boolean);
+  // ── Arquivos ──
+  // Toda linha de arquivo mostra as duas colunas: um "-" na coluna de tamanho
+  // diz "o Duplicati não reporta isso", e é informação. Coluna ausente só
+  // deixaria a tabela irregular.
+  const linhasArquivos = ["Adicionados", "Alterados", "Excluídos", "Abertos", "Examinados"]
+    .filter((rotulo) => item("Arquivos", rotulo) !== undefined)
+    .map((rotulo) => linhaTabela(rotulo, qtde("Arquivos", rotulo), tam("Arquivos", rotulo)));
 
-  if (arquivos.length > 0) {
-    linhas.push("");
-    linhas.push(`Arquivos: ${arquivos.join(" · ")}`);
+  if (linhasArquivos.length > 0) {
+    bloco.push("");
+    bloco.push(cabecalhoTabela("📁 ARQUIVOS", true));
+    bloco.push(...linhasArquivos);
   }
 
-  const destino = [
-    enviado && `enviado ${enviado}`,
-    totalDestino && `total no destino ${totalDestino}`,
-    versoes && `${versoes} versões`,
-  ].filter(Boolean);
+  // ── Pastas ──
+  const pastas = ["Adicionadas", "Alteradas", "Excluídas"]
+    .filter((rotulo) => item("Pastas", rotulo) !== undefined)
+    .map((rotulo) => linhaTabela(rotulo, qtde("Pastas", rotulo)));
 
-  if (destino.length > 0) linhas.push(`Destino: ${destino.join(" · ")}`);
+  if (pastas.length > 0) {
+    bloco.push("");
+    bloco.push(cabecalhoTabela("📂 PASTAS", false));
+    bloco.push(...pastas);
+  }
 
-  // Warning e erro trazem o motivo: sem ele, o recibo vira só uma cor.
-  const problemas = [...resumo.erros.slice(0, 3), ...resumo.avisos.slice(0, 3)];
-  if (problemas.length > 0) {
-    linhas.push("");
-    for (const p of problemas) linhas.push(`• ${p}`);
-    const restantes =
-      resumo.erros.length + resumo.avisos.length - problemas.length;
-    if (restantes > 0) linhas.push(`… e mais ${restantes} mensagem(ns) no painel.`);
+  // ── Destino ──
+  const destino: string[] = [];
+  const enviado = tam("Destino", "Enviado") ?? bytesLegiveis(dados.bytesUploaded);
+  if (enviado) destino.push(linhaValor("Enviado", enviado));
+  const total = tam("Destino", "Tamanho total no destino");
+  if (total) destino.push(linhaValor("Total no destino", total));
+  const versoes = qtde("Destino", "Versões guardadas");
+  if (versoes) destino.push(linhaValor("Versões no destino", versoes));
+
+  if (destino.length > 0) {
+    bloco.push("");
+    bloco.push("☁️ DESTINO");
+    bloco.push(...destino);
   }
 
   if (resumo.sinalizadores.length > 0) {
-    linhas.push("");
-    linhas.push(resumo.sinalizadores.join(" · "));
+    bloco.push("");
+    bloco.push(`⚠️ ${resumo.sinalizadores.join(" · ")}`);
   }
 
-  const texto = linhas.join("\n");
-  const html = [`<b>${escapar(titulo)}</b>`, ...linhas.slice(1).map(escapar)].join("\n");
+  // Erros e avisos ficam FORA do bloco monoespaçado: são frases longas, que
+  // dentro do <pre> não quebram linha e viram rolagem horizontal no celular.
+  const problemas = [...resumo.erros.slice(0, 3), ...resumo.avisos.slice(0, 3)];
+  const rodape: string[] = [];
+  if (problemas.length > 0) {
+    rodape.push("");
+    for (const p of problemas) rodape.push(`• ${p}`);
+    const restantes = resumo.erros.length + resumo.avisos.length - problemas.length;
+    if (restantes > 0) rodape.push(`… e mais ${restantes} mensagem(ns) no painel.`);
+  }
+
+  const texto = [titulo, "", ...bloco, ...rodape].join("\n");
+
+  const html = [
+    `<b>${escapar(titulo)}</b>`,
+    "",
+    `<pre>${escapar(bloco.join("\n"))}</pre>`,
+    ...rodape.map(escapar),
+  ].join("\n");
 
   return { titulo, texto, html };
 }

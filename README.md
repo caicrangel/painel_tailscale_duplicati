@@ -403,15 +403,35 @@ Ligue em **Configurações → Telegram → Aviso a cada execução**. A mensage
 ```
 ✅ Backup concluído — Contabilidade Modelo
 
-Tarefa: Dados Fiscais
-Máquina: srv-fiscal-01
-Resultado: Sucesso
-Duração: 12min 44s
-Janela: 00:00 → 00:12
+📋 Tarefa:          Dados Fiscais
+🖥️ Máquina:         srv-fiscal-01
+⚙️ Operação:        Backup
+✅ Resultado:       Sucesso
+⏱️ Duração:         12min 44s
+🕐 Janela:          00:00 → 00:12
 
-Arquivos: examinados 48.213 · adicionados 15 · alterados 12
-Destino: enviado 2,30 GB · total no destino 384,0 GB · 30 versões
+📁 ARQUIVOS              qtde        tam.
+  Adicionados              15     1,00 MB
+  Alterados                12     1,95 MB
+  Excluídos                 3           -
+  Abertos                  15     2,95 MB
+  Examinados           48.213    175,0 GB
+
+📂 PASTAS                qtde
+  Adicionadas               1
+  Alteradas                 0
+  Excluídas                 0
+
+☁️ DESTINO
+  Enviado                         2,30 GB
+  Total no destino               384,0 GB
+  Versões no destino                   30
 ```
+
+O bloco vai em fonte monoespaçada (`<pre>` no Telegram) — é o que mantém as
+colunas alinhadas. Warning e erro aparecem embaixo, fora do bloco, porque são
+frases longas que dentro do `<pre>` não quebram linha e viram rolagem lateral no
+celular.
 
 Warning e erro trazem também as mensagens do Duplicati, para o recibo não virar
 só uma cor.

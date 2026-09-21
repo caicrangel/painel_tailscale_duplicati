@@ -58,15 +58,20 @@ export async function enviarEmail(params: {
   }
 }
 
-/** Envelopa um texto simples num HTML legível, sem depender de imagens externas. */
-export function montarHtml(titulo: string, corpo: string): string {
+/**
+ * Envelopa um texto simples num HTML legível, sem depender de imagens externas.
+ *
+ * `mono` deixa o corpo em fonte monoespaçada: o recibo de execução alinha
+ * colunas com espaços, e em fonte proporcional a tabela entorta.
+ */
+export function montarHtml(titulo: string, corpo: string, mono = false): string {
   return `<!doctype html>
 <html lang="pt-BR"><body style="margin:0;background:#f6f8fa;padding:24px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif">
   <div style="max-width:640px;margin:0 auto;background:#fff;border:1px solid #d8dee4;border-radius:12px;overflow:hidden">
     <div style="padding:16px 20px;border-bottom:1px solid #d8dee4">
       <strong style="font-size:15px;color:#1f2328">${escaparHtmlEmail(titulo)}</strong>
     </div>
-    <div style="padding:20px;color:#1f2328;font-size:14px;line-height:1.6;white-space:pre-wrap">${corpo}</div>
+    <div style="padding:20px;color:#1f2328;font-size:${mono ? "13px" : "14px"};line-height:1.6;white-space:pre-wrap${mono ? ";font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" : ""}">${corpo}</div>
     <div style="padding:12px 20px;border-top:1px solid #d8dee4;color:#59636e;font-size:12px">
       Painel de Monitoramento — Infraestrutura e Backups
     </div>
