@@ -11,12 +11,20 @@ export const slugify = (s: string) =>
     .replace(/^-+|-+$/g, "")
     .slice(0, 48);
 
+/**
+ * Campo opcional lido de FormData.
+ *
+ * `nullish` e não `optional`: um input desabilitado ou ausente não é enviado, e
+ * `formData.get()` devolve null — que `z.string().optional()` rejeita. Sem isto,
+ * desabilitar um campo na tela quebra o salvamento inteiro com um erro de
+ * validação que não fala do campo desabilitado.
+ */
 const textoOpcional = z
   .string()
   .trim()
   .max(500)
-  .optional()
-  .transform((v) => (v === "" ? undefined : v));
+  .nullish()
+  .transform((v) => (v === "" || v === null ? undefined : v));
 
 export const clientSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome do cliente.").max(120),
@@ -30,25 +38,36 @@ export const clientSchema = z.object({
     .or(z.literal("").transform(() => undefined)),
   contactPhone: textoOpcional,
   telegramChatId: textoOpcional,
-  notes: z.string().trim().max(2000).optional().transform((v) => (v === "" ? undefined : v)),
+  notes: z
+    .string()
+    .trim()
+    .max(2000)
+    .nullish()
+    .transform((v) => (v === "" || v === null ? undefined : v)),
   active: z.coerce.boolean().default(true),
 });
 
 export type ClientInput = z.infer<typeof clientSchema>;
 
 export const machineSchema = z.object({
+  role: z.enum(["CLIENTE", "SUPORTE"]).default("CLIENTE"),
   clientId: z
     .string()
     .trim()
-    .optional()
-    .transform((v) => (v === "" || v === "null" ? undefined : v)),
+    .nullish()
+    .transform((v) => (v === "" || v === "null" || v === null ? undefined : v)),
   hostname: z.string().trim().min(1, "Informe o hostname.").max(200),
   displayName: textoOpcional,
-  notes: z.string().trim().max(2000).optional().transform((v) => (v === "" ? undefined : v)),
+  notes: z
+    .string()
+    .trim()
+    .max(2000)
+    .nullish()
+    .transform((v) => (v === "" || v === null ? undefined : v)),
   maintenanceUntil: z
     .string()
     .trim()
-    .optional()
+    .nullish()
     .transform((v) => (v ? new Date(v) : undefined))
     .refine((d) => d === undefined || !Number.isNaN(d.getTime()), "Data de manutenção inválida."),
 });

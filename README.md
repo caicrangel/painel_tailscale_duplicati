@@ -311,6 +311,13 @@ do banco. Duas consequências práticas: execuções recebidas antes desta tela 
 também mostram o resumo, e campos que o Duplicati acrescentar em versões futuras
 aparecem sem precisar de migração.
 
+**Máquinas de apoio.** Nem todo device da tailnet é infraestrutura de cliente: a
+estação da equipe, um celular, um jump host. Em **Máquinas → a máquina →
+Finalidade**, marque como **Máquina de apoio**. Ela continua na lista, com status
+de rede, mas sai dos indicadores do dashboard, do aviso de "não atribuídas" e dos
+alertas — um notebook fechado à noite não é incidente de backup. Máquina de apoio
+não fica presa a um cliente, porque atende todos.
+
 **Máquina duplicada.** O hostname no Tailscale e o `machine-name` que o Duplicati
 reporta costumam divergir — um device `cliente-x.tailnet.ts.net` pode se apresentar
 como `srv-betania`. Quando isso acontece, o mesmo servidor aparece duas vezes: uma

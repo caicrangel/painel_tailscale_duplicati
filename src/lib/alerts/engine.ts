@@ -20,6 +20,8 @@ export type MaquinaSnapshot = {
   id: string;
   clientId: string | null;
   clientName: string | null;
+  /** Máquina nossa, de apoio: aparece na lista, mas não vira incidente. */
+  suporte: boolean;
   hostname: string;
   displayName: string | null;
   status: MachineStatus;
@@ -119,6 +121,9 @@ export function derivarCondicoes(params: {
   for (const maquina of maquinas) {
     if (maquina.status !== "OFFLINE") continue;
     if (emManutencao(maquina, now)) continue;
+    // Máquina de apoio não é infraestrutura de cliente: um notebook fechado à
+    // noite não é incidente de backup.
+    if (maquina.suporte) continue;
     // Máquina não atribuída não tem dono para avisar — aparece na UI, não no Telegram.
     if (maquina.clientId === null) continue;
 
@@ -155,6 +160,7 @@ export function derivarCondicoes(params: {
     const maquina = maquinas.find((m) => m.id === job.machineId);
     if (!maquina) continue;
     if (emManutencao(maquina, now)) continue;
+    if (maquina.suporte) continue;
 
     const nome = `${job.name} · ${nomeMaquina(maquina)}`;
 

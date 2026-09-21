@@ -62,7 +62,13 @@ export default async function DashboardPage() {
     <div className="space-y-6">
       <PageHeader
         title="Dashboard"
-        subtitle={`${resumo.clientes.ativos} cliente(s) ativo(s) · ${resumo.maquinas.total} máquina(s) · ${resumo.jobs.total} job(s) de backup`}
+        subtitle={
+          `${resumo.clientes.ativos} cliente(s) ativo(s) · ${resumo.maquinas.total} máquina(s) de cliente · ` +
+          `${resumo.jobs.total} job(s) de backup` +
+          (resumo.maquinas.suporte > 0
+            ? ` · ${resumo.maquinas.suporte} de apoio (fora dos indicadores)`
+            : "")
+        }
       />
 
       {(cicloVelho || cicloComErro) && (

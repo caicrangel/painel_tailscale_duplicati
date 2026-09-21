@@ -58,6 +58,7 @@ export async function atualizarMaquina(id: string, formData: FormData): Promise<
   if (!guard.ok) return guard;
 
   const parsed = machineSchema.safeParse({
+    role: formData.get("role") ?? "CLIENTE",
     clientId: formData.get("clientId"),
     hostname: formData.get("hostname"),
     displayName: formData.get("displayName"),
@@ -66,10 +67,15 @@ export async function atualizarMaquina(id: string, formData: FormData): Promise<
   });
   if (!parsed.success) return { ok: false, error: primeiroErro(parsed.error) };
 
+  // Máquina de suporte atende todos os clientes por definição, então não fica
+  // presa a um: manter um vínculo aqui só criaria contradição na tela.
+  const suporte = parsed.data.role === "SUPORTE";
+
   await prisma.machine.update({
     where: { id },
     data: {
-      clientId: parsed.data.clientId ?? null,
+      role: parsed.data.role,
+      clientId: suporte ? null : (parsed.data.clientId ?? null),
       hostname: parsed.data.hostname,
       displayName: parsed.data.displayName ?? null,
       notes: parsed.data.notes ?? null,
@@ -81,6 +87,7 @@ export async function atualizarMaquina(id: string, formData: FormData): Promise<
     userId: guard.user.id,
     userEmail: guard.user.email,
     action: "maquina.atualizada",
+    metadata: { role: parsed.data.role },
     entityType: "Machine",
     entityId: id,
     ip: await ip(),

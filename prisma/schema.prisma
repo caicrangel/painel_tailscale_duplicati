@@ -37,6 +37,16 @@ enum MachineSource {
   MANUAL
 }
 
+/// Para que a máquina serve no painel.
+///   CLIENTE — infraestrutura de um cliente: conta nos indicadores e gera alerta.
+///   SUPORTE — máquina nossa, de apoio (estação da equipe, celular, jump host).
+///             Aparece na lista, mas fica fora dos indicadores e dos alertas:
+///             um celular desligado à noite não é incidente de backup.
+enum MachineRole {
+  CLIENTE
+  SUPORTE
+}
+
 enum ParsedResult {
   SUCCESS
   WARNING
@@ -175,6 +185,7 @@ model IngestToken {
 model Machine {
   id                 String        @id @default(cuid())
   clientId           String? // nulo = device ainda não atribuído a um cliente
+  role               MachineRole   @default(CLIENTE)
   source             MachineSource @default(TAILSCALE)
   tailscaleDeviceId  String?       @unique
   duplicatiMachineId String? // Extra.machine-id do Duplicati
@@ -204,6 +215,7 @@ model Machine {
   alerts     Alert[]
 
   @@index([clientId, status])
+  @@index([role, status])
   @@index([status, lastSeen])
   @@index([duplicatiMachineId])
   @@map("machines")

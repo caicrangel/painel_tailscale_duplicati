@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ActionForm } from "@/components/action-form";
 import { Field, Input, Select, Textarea } from "@/components/ui/input";
 import { atribuirMaquina, atualizarMaquina } from "@/server/machines-actions";
@@ -16,9 +17,13 @@ export function AssignForm({
     notes: string | null;
     maintenanceUntil: Date | null;
     source: string;
+    role: "CLIENTE" | "SUPORTE";
   };
   clientes: { id: string; name: string }[];
 }) {
+  const [role, setRole] = useState(machine.role);
+  const apoio = role === "SUPORTE";
+
   return (
     <ActionForm
       action={atualizarMaquina.bind(null, machine.id)}
@@ -27,10 +32,32 @@ export function AssignForm({
     >
       <div className="space-y-4">
         <Field
-          label="Cliente"
-          hint="Vincular é o que faz esta máquina entrar no monitoramento e nos alertas."
+          label="Finalidade"
+          hint={
+            apoio
+              ? "Máquina nossa, de apoio: aparece na lista, mas fica fora dos indicadores e não gera alerta de offline."
+              : "Infraestrutura de cliente: conta nos indicadores e gera alerta."
+          }
         >
-          <Select name="clientId" defaultValue={machine.clientId ?? ""}>
+          <Select
+            name="role"
+            value={role}
+            onChange={(e) => setRole(e.target.value as "CLIENTE" | "SUPORTE")}
+          >
+            <option value="CLIENTE">Máquina de cliente</option>
+            <option value="SUPORTE">Máquina de apoio (todos os clientes)</option>
+          </Select>
+        </Field>
+
+        <Field
+          label="Cliente"
+          hint={
+            apoio
+              ? "Máquina de apoio atende todos os clientes, então não fica presa a um."
+              : "Vincular é o que faz esta máquina entrar no monitoramento e nos alertas."
+          }
+        >
+          <Select name="clientId" defaultValue={machine.clientId ?? ""} disabled={apoio}>
             <option value="">— Não atribuída —</option>
             {clientes.map((c) => (
               <option key={c.id} value={c.id}>

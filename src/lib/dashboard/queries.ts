@@ -9,17 +9,30 @@ import type { DiaDaFaixa } from "@/components/heat-strip";
 const TZ = "America/Sao_Paulo";
 
 export type ResumoDashboard = {
-  maquinas: { total: number; online: number; idle: number; offline: number; desconhecidas: number; naoAtribuidas: number };
+  maquinas: {
+    total: number;
+    online: number;
+    idle: number;
+    offline: number;
+    desconhecidas: number;
+    naoAtribuidas: number;
+    /** Máquinas nossas, de apoio: ficam fora dos indicadores acima. */
+    suporte: number;
+  };
   jobs: { total: number; ok: number; warning: number; erro: number; atrasados: number; pausados: number; semDados: number };
   clientes: { total: number; ativos: number };
   alertas: { abertos: number; criticos: number };
 };
 
 export async function carregarResumo(): Promise<ResumoDashboard> {
-  const [maquinasPorStatus, naoAtribuidas, jobsPorStatus, clientes, clientesAtivos, alertas, criticos] =
+  // Os indicadores respondem "como está a infraestrutura dos clientes", então
+  // máquinas de apoio (as nossas) não entram na conta — um celular desligado
+  // não pode pintar o painel de vermelho.
+  const [maquinasPorStatus, naoAtribuidas, suporte, jobsPorStatus, clientes, clientesAtivos, alertas, criticos] =
     await Promise.all([
-      prisma.machine.groupBy({ by: ["status"], _count: true }),
-      prisma.machine.count({ where: { clientId: null } }),
+      prisma.machine.groupBy({ by: ["status"], _count: true, where: { role: "CLIENTE" } }),
+      prisma.machine.count({ where: { clientId: null, role: "CLIENTE" } }),
+      prisma.machine.count({ where: { role: "SUPORTE" } }),
       prisma.backupJob.groupBy({ by: ["status"], _count: true, where: { active: true } }),
       prisma.client.count(),
       prisma.client.count({ where: { active: true } }),
@@ -39,6 +52,7 @@ export async function carregarResumo(): Promise<ResumoDashboard> {
       offline: m("OFFLINE"),
       desconhecidas: m("UNKNOWN"),
       naoAtribuidas,
+      suporte,
     },
     jobs: {
       total: jobsPorStatus.reduce((acc, x) => acc + x._count, 0),

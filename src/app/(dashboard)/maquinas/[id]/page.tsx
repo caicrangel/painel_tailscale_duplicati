@@ -44,10 +44,15 @@ export default async function MaquinaDetalhePage({ params }: { params: Promise<{
       <PageHeader
         title={maquina.displayName ?? maquina.hostname}
         subtitle={
-          maquina.client ? `Cliente: ${maquina.client.name}` : "Máquina ainda não atribuída"
+          maquina.role === "SUPORTE"
+            ? "Máquina de apoio — atende todos os clientes"
+            : maquina.client
+              ? `Cliente: ${maquina.client.name}`
+              : "Máquina ainda não atribuída"
         }
         actions={
           <div className="flex items-center gap-2">
+            {maquina.role === "SUPORTE" && <Badge tone="info">apoio</Badge>}
             {emManutencao && <Badge tone="info">em manutenção</Badge>}
             <Badge tone={MACHINE_STATUS[maquina.status].tone} dot>
               {MACHINE_STATUS[maquina.status].label}

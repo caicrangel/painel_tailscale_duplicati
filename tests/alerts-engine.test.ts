@@ -18,6 +18,7 @@ function maquina(over: Partial<MaquinaSnapshot> = {}): MaquinaSnapshot {
     id: "maq-1",
     clientId: "cli-1",
     clientName: "Contabilidade Modelo",
+    suporte: false,
     hostname: "srv-fiscal-01",
     displayName: null,
     status: "ONLINE",
@@ -175,6 +176,34 @@ describe("correlação: máquina offline absorve o atraso dos jobs", () => {
       ...opcoes,
     });
     expect(c.map((x) => x.type).sort()).toEqual(["BACKUP_LATE", "MACHINE_OFFLINE"]);
+  });
+});
+
+describe("máquina de suporte fica fora dos alertas", () => {
+  const offlineHaDias = {
+    status: "OFFLINE" as const,
+    lastSeen: new Date(AGORA.getTime() - 48 * 60 * 60_000),
+  };
+
+  it("máquina de apoio offline não vira incidente", () => {
+    const apoio = maquina({ ...offlineHaDias, suporte: true, clientId: null, clientName: null });
+    expect(derivarCondicoes({ maquinas: [apoio], jobs: [], ...opcoes })).toEqual([]);
+  });
+
+  it("nem os jobs dela — se alguém configurar um backup ali", () => {
+    const apoio = maquina({ ...offlineHaDias, suporte: true });
+    const c = derivarCondicoes({
+      maquinas: [apoio],
+      jobs: [job({ status: "LATE", lateByMinutes: 5000 })],
+      ...opcoes,
+    });
+    expect(c).toEqual([]);
+  });
+
+  it("a mesma máquina, marcada como de cliente, volta a alertar", () => {
+    const daEmpresa = maquina({ ...offlineHaDias, suporte: false });
+    const c = derivarCondicoes({ maquinas: [daEmpresa], jobs: [], ...opcoes });
+    expect(c.map((x) => x.type)).toEqual(["MACHINE_OFFLINE"]);
   });
 });
 

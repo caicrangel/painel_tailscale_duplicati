@@ -25,8 +25,14 @@ export default async function MaquinasPage({
   const sp = await searchParams;
 
   const where: Prisma.MachineWhereInput = {};
-  if (sp.cliente === "nao-atribuidas") where.clientId = null;
-  else if (sp.cliente) where.clientId = sp.cliente;
+  if (sp.cliente === "nao-atribuidas") {
+    where.clientId = null;
+    where.role = "CLIENTE";
+  } else if (sp.cliente === "suporte") {
+    where.role = "SUPORTE";
+  } else if (sp.cliente) {
+    where.clientId = sp.cliente;
+  }
   if (sp.status && STATUS_VALIDOS.includes(sp.status as MachineStatus)) {
     where.status = sp.status as MachineStatus;
   }
@@ -42,7 +48,8 @@ export default async function MaquinasPage({
       },
     }),
     prisma.client.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
-    prisma.machine.count({ where: { clientId: null } }),
+    // "Não atribuída" só conta máquina de cliente: as de apoio não são pendência.
+    prisma.machine.count({ where: { clientId: null, role: "CLIENTE" } }),
   ]);
 
   return (
@@ -72,6 +79,7 @@ export default async function MaquinasPage({
             opcoes: [
               { value: "", label: "Todos os clientes" },
               { value: "nao-atribuidas", label: "— Não atribuídas —" },
+              { value: "suporte", label: "— Máquinas de apoio —" },
               ...clientes.map((c) => ({ value: c.id, label: c.name })),
             ],
           },
@@ -126,7 +134,9 @@ export default async function MaquinasPage({
                       )}
                     </Td>
                     <Td>
-                      {m.client ? (
+                      {m.role === "SUPORTE" ? (
+                        <Badge tone="info">apoio · todos os clientes</Badge>
+                      ) : m.client ? (
                         <Link
                           href={`/clientes/${m.client.id}`}
                           className="text-[var(--color-muted)] hover:text-[var(--color-info)]"
