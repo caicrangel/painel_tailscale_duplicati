@@ -5,17 +5,18 @@ import { prisma } from "@/lib/db/prisma";
 import { requireUser } from "@/lib/auth/guards";
 import { podeAtuarComo } from "@/lib/auth/roles";
 import { carregarFaixas } from "@/lib/dashboard/queries";
-import { serializeBigInts } from "@/lib/db/serialize";
+import { extrairResumo, resumoVazio } from "@/lib/duplicati/resumo";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatTile } from "@/components/ui/stat-tile";
 import { HeatStrip, HeatStripLegenda } from "@/components/heat-strip";
-import { Table, Td, Th, Tr, EmptyState } from "@/components/ui/table";
+import { EmptyState } from "@/components/ui/table";
 import { JOB_STATUS, PARSED_RESULT } from "@/lib/utils/status";
-import { fmtBytes, fmtDataHora, fmtDuracao, fmtIntervalo, fmtNumero, fmtRelativo } from "@/lib/utils/format";
+import { fmtBytes, fmtDuracao, fmtIntervalo, fmtNumero, fmtRelativo } from "@/lib/utils/format";
 import { JobForm } from "./job-form";
-import { PayloadViewer } from "./payload-viewer";
+import { RunHistory, type LinhaExecucao } from "./run-history";
+import { DeleteJobButton } from "./delete-job-button";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,50 @@ export default async function JobDetalhePage({ params }: { params: Promise<{ id:
 
   const faixas = await carregarFaixas([job.id], 30);
   const ultima = job.runs[0];
-  const runs = serializeBigInts(job.runs);
+
+  // O resumo sai do payload bruto, que é gravado em toda execução — então
+  // vale inclusive para as que chegaram antes desta tela existir.
+  const linhas: LinhaExecucao[] = job.runs.map((run) => {
+    const resumo = extrairResumo(run.rawPayload);
+    return {
+      id: run.id,
+      receivedAt: run.receivedAt.toISOString(),
+      parsedResult: run.parsedResult,
+      durationSeconds: run.durationSeconds,
+      bytesUploaded: run.bytesUploaded === null ? null : Number(run.bytesUploaded),
+      warningsCount: run.warningsCount,
+      errorsCount: run.errorsCount,
+      parseError: run.parseError,
+      rawPayload: run.rawPayload,
+      resumo: {
+        operacao: resumo.operacao,
+        versao: resumo.versao,
+        inicio: resumo.inicio?.toISOString() ?? null,
+        fim: resumo.fim?.toISOString() ?? null,
+        duracaoSegundos: resumo.duracaoSegundos,
+        sinalizadores: resumo.sinalizadores,
+        // BigInt não atravessa a fronteira servidor → cliente: converte aqui,
+        // onde a intenção fica explícita, em vez de um helper genérico.
+        secoes: resumo.secoes.map((secao) => ({
+          titulo: secao.titulo,
+          itens: secao.itens.map((item) => ({
+            rotulo: item.rotulo,
+            quantidade: item.quantidade,
+            bytes: item.bytes === null ? null : Number(item.bytes),
+          })),
+        })),
+        avisos: resumo.avisos,
+        erros: resumo.erros,
+        mensagensCount: resumo.mensagensCount,
+        vazio: resumoVazio(resumo),
+      },
+    };
+  });
+
+  const itemDoResumo = (secao: string, rotulo: string) =>
+    linhas[0]?.resumo.secoes.find((s) => s.titulo === secao)?.itens.find((i) => i.rotulo === rotulo);
+  const doResumo = (secao: string, rotulo: string) => itemDoResumo(secao, rotulo)?.quantidade ?? null;
+  const bytesDoResumo = (secao: string, rotulo: string) => itemDoResumo(secao, rotulo)?.bytes ?? null;
 
   return (
     <div className="space-y-6">
@@ -53,9 +97,18 @@ export default async function JobDetalhePage({ params }: { params: Promise<{ id:
           job.machine.client ? ` · ${job.machine.client.name}` : ""
         }`}
         actions={
-          <Badge tone={JOB_STATUS[job.status].tone} dot>
-            {JOB_STATUS[job.status].label}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge tone={JOB_STATUS[job.status].tone} dot>
+              {JOB_STATUS[job.status].label}
+            </Badge>
+            {podeAtuarComo(user.role, "ADMIN") && (
+              <DeleteJobButton
+                id={job.id}
+                nome={job.name}
+                execucoes={job.runs.length}
+              />
+            )}
+          </div>
         }
       />
 
@@ -72,6 +125,11 @@ export default async function JobDetalhePage({ params }: { params: Promise<{ id:
         </div>
       )}
 
+      {/*
+        Os cartões preferem o resumo extraído do payload bruto e só caem para as
+        colunas do banco quando ele não tem o número: as duas fontes existem, e
+        divergir entre elas na mesma tela confunde mais que informa.
+      */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
           label="Último resultado"
@@ -81,13 +139,21 @@ export default async function JobDetalhePage({ params }: { params: Promise<{ id:
         />
         <StatTile
           label="Enviado na última execução"
-          value={fmtBytes(ultima?.bytesUploaded ?? null)}
-          hint={ultima ? `${fmtNumero(ultima.addedFiles ?? 0)} arquivo(s) adicionado(s)` : undefined}
+          value={fmtBytes(bytesDoResumo("Destino", "Enviado") ?? ultima?.bytesUploaded ?? null)}
+          hint={
+            ultima
+              ? `${fmtNumero(doResumo("Arquivos", "Adicionados") ?? Number(ultima.addedFiles ?? 0))} arquivo(s) adicionado(s)`
+              : undefined
+          }
         />
         <StatTile
           label="Duração"
-          value={fmtDuracao(ultima?.durationSeconds ?? null)}
-          hint={ultima ? `${fmtNumero(ultima.examinedFiles ?? 0)} arquivo(s) examinado(s)` : undefined}
+          value={fmtDuracao(linhas[0]?.resumo.duracaoSegundos ?? ultima?.durationSeconds ?? null)}
+          hint={
+            ultima
+              ? `${fmtNumero(doResumo("Arquivos", "Examinados") ?? Number(ultima.examinedFiles ?? 0))} arquivo(s) examinado(s)`
+              : undefined
+          }
         />
         <StatTile
           label="Próxima esperada"
@@ -107,104 +173,48 @@ export default async function JobDetalhePage({ params }: { params: Promise<{ id:
         </CardBody>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-3">
-          <Card>
-            <CardHeader>
-              <CardTitle>Histórico de execuções</CardTitle>
-            </CardHeader>
-            {runs.length === 0 ? (
-              <EmptyState title="Nenhuma execução registrada" />
-            ) : (
-              <Table>
-                <thead>
-                  <tr>
-                    <Th>Recebido</Th>
-                    <Th>Resultado</Th>
-                    <Th>Duração</Th>
-                    <Th>Enviado</Th>
-                    <Th>Avisos</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {runs.map((run) => (
-                    <Tr key={run.id}>
-                      <Td className="whitespace-nowrap text-[var(--color-muted)]">
-                        {fmtDataHora(run.receivedAt)}
-                      </Td>
-                      <Td>
-                        <Badge tone={PARSED_RESULT[run.parsedResult].tone} dot>
-                          {PARSED_RESULT[run.parsedResult].label}
-                        </Badge>
-                      </Td>
-                      <Td className="text-[var(--color-muted)]">{fmtDuracao(run.durationSeconds)}</Td>
-                      <Td className="text-[var(--color-muted)]">{fmtBytes(run.bytesUploaded)}</Td>
-                      <Td>
-                        <span className="text-xs text-[var(--color-muted)]">
-                          {run.warningsCount > 0 && `${run.warningsCount} warning(s) `}
-                          {run.errorsCount > 0 && `${run.errorsCount} erro(s)`}
-                          {run.warningsCount === 0 && run.errorsCount === 0 && "—"}
-                        </span>
-                        {run.parseError && (
-                          <Badge tone="warn" className="ml-1">
-                            parsing
-                          </Badge>
-                        )}
-                      </Td>
-                    </Tr>
-                  ))}
-                </tbody>
-              </Table>
-            )}
-          </Card>
-
-          {ultima && (
-            <div className="mt-4 space-y-2">
-              {ultima.parseError && (
-                <p className="rounded-lg border border-[var(--color-warn)]/30 bg-[var(--color-warn-dim)] px-3 py-2 text-xs text-[var(--color-warn)]">
-                  Avisos de parsing do último relatório: {ultima.parseError}
-                </p>
-              )}
-              <PayloadViewer payload={ultima.rawPayload} />
-            </div>
-          )}
-        </div>
-
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Configuração do monitoramento</CardTitle>
-            </CardHeader>
-            <CardBody>
-              {podeAtuarComo(user.role, "OPERATOR") ? (
-                <JobForm job={job} />
-              ) : (
-                <dl className="space-y-3 text-sm">
-                  <div>
-                    <dt className="text-xs text-[var(--color-muted)]">Frequência</dt>
-                    <dd>{fmtIntervalo(job.expectedIntervalMinutes)}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-[var(--color-muted)]">Tolerância</dt>
-                    <dd>{job.toleranceMinutes} minutos</dd>
-                  </div>
-                </dl>
-              )}
-              <div className="mt-5 border-t border-[var(--color-border)] pt-4 text-xs text-[var(--color-muted)]">
-                <p>
-                  ID no Duplicati: <code className="font-mono">{job.duplicatiBackupId}</code>
-                </p>
-                <p className="mt-1">
-                  Máquina:{" "}
-                  <Link href={`/maquinas/${job.machine.id}`} className="text-[var(--color-info)]">
-                    {job.machine.displayName ?? job.machine.hostname}
-                  </Link>
-                </p>
+      <Card>
+        <CardHeader>
+          <CardTitle>Histórico de execuções</CardTitle>
+        </CardHeader>
+        {linhas.length === 0 ? (
+          <EmptyState title="Nenhuma execução registrada" />
+        ) : (
+          <RunHistory linhas={linhas} />
+        )}
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Configuração do monitoramento</CardTitle>
+        </CardHeader>
+        <CardBody>
+          {podeAtuarComo(user.role, "OPERATOR") ? (
+            <JobForm job={job} />
+          ) : (
+            <dl className="grid gap-4 text-sm sm:grid-cols-3">
+              <div>
+                <dt className="text-xs text-[var(--color-muted)]">Frequência</dt>
+                <dd>{fmtIntervalo(job.expectedIntervalMinutes)}</dd>
               </div>
-            </CardBody>
-          </Card>
-        </div>
-      </div>
+              <div>
+                <dt className="text-xs text-[var(--color-muted)]">Tolerância</dt>
+                <dd>{job.toleranceMinutes} minutos</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-[var(--color-muted)]">Destino</dt>
+                <dd>{job.destinationHint ?? "—"}</dd>
+              </div>
+            </dl>
+          )}
+          <p className="mt-5 border-t border-[var(--color-border)] pt-4 text-xs text-[var(--color-muted)]">
+            ID no Duplicati: <code className="font-mono">{job.duplicatiBackupId}</code> · Máquina:{" "}
+            <Link href={`/maquinas/${job.machine.id}`} className="text-[var(--color-info)]">
+              {job.machine.displayName ?? job.machine.hostname}
+            </Link>
+          </p>
+        </CardBody>
+      </Card>
+
     </div>
   );
 }

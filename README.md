@@ -298,6 +298,27 @@ escolha o cliente.
 
 ---
 
+## 3b. Lendo uma execução no painel
+
+Em **Jobs de backup → o job**, cada linha do histórico abre com o resumo completo
+daquela execução: arquivos adicionados, alterados, excluídos, abertos e examinados
+(com tamanho), pastas, links simbólicos, arquivos que ficaram de fora, e o que foi
+para o destino — enviado, baixado, chamadas, tamanho total e quantas versões
+existem lá. Warnings e erros aparecem com o texto original, não só a contagem.
+
+Esses números saem do payload bruto guardado de cada execução, e não de colunas
+do banco. Duas consequências práticas: execuções recebidas antes desta tela existir
+também mostram o resumo, e campos que o Duplicati acrescentar em versões futuras
+aparecem sem precisar de migração.
+
+**Removendo um job.** Se o job deixou de existir no Duplicati, remova aqui também
+(botão no topo da tela do job, só para ADMIN) — senão ele vira "atrasado" para
+sempre. A remoção apaga o histórico de execuções junto. Se o job ainda existir na
+máquina, o próximo relatório recria o registro com a configuração padrão, então
+nesse caso prefira **pausar** o monitoramento em vez de remover.
+
+---
+
 ## 4. Como o atraso é calculado
 
 ```

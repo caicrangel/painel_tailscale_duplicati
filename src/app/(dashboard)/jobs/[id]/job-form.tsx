@@ -33,7 +33,7 @@ export function JobForm({
       submitLabel="Salvar"
       successMessage="Job atualizado — o status de atraso já foi recalculado."
     >
-      <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Field label="Nome">
           <Input name="name" defaultValue={job.name} required />
         </Field>

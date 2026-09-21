@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/db/prisma";
 import { audit } from "@/lib/audit";
@@ -78,4 +79,43 @@ export async function atualizarJob(id: string, formData: FormData): Promise<Acti
   revalidatePath("/jobs");
   revalidatePath(`/jobs/${id}`);
   return { ok: true, data: undefined };
+}
+
+/**
+ * Remove um job e todo o histórico dele (execuções e alertas caem por cascade).
+ *
+ * Atenção operacional: se o job ainda existir no Duplicati daquela máquina, o
+ * próximo relatório recria o registro aqui do zero — inclusive a frequência
+ * esperada volta ao padrão. Remover só faz sentido para job que também deixou
+ * de existir na origem.
+ */
+export async function removerJob(id: string): Promise<ActionResult> {
+  const guard = await guardAction("ADMIN");
+  if (!guard.ok) return guard;
+
+  const job = await prisma.backupJob.findUnique({
+    where: { id },
+    include: { _count: { select: { runs: true } }, machine: { select: { hostname: true } } },
+  });
+  if (!job) return { ok: false, error: "Job não encontrado." };
+
+  await prisma.backupJob.delete({ where: { id } });
+
+  await audit({
+    userId: guard.user.id,
+    userEmail: guard.user.email,
+    action: "job.removido",
+    entityType: "BackupJob",
+    entityId: id,
+    metadata: {
+      name: job.name,
+      machine: job.machine.hostname,
+      duplicatiBackupId: job.duplicatiBackupId,
+      execucoesApagadas: job._count.runs,
+    },
+  });
+
+  revalidatePath("/jobs");
+  revalidatePath("/dashboard");
+  redirect("/jobs");
 }
