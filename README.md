@@ -362,6 +362,74 @@ consultar a API do Duplicati em cada máquina, previsto para a Fase 2.
 
 ---
 
+## 4a. Verificação de montagens antes do backup
+
+Um backup cujo share caiu não falha: ele termina "com sucesso" tendo copiado
+nada. Por isso a verificação de pontos de montagem roda alguns minutos antes de
+cada job — e agora ela reporta ao painel.
+
+**O que continua na máquina.** Checar se o ponto está montado, acessível, do tipo
+certo e populado, e **remontar** quando não está. Isso precisa de root e das
+syscalls de mount: não há como o painel fazer remotamente sem virar um agente com
+root em cada máquina de cliente, o que seria uma superfície de ataque muito maior
+do que o problema que resolve.
+
+**O que passou para o painel.** O saber: histórico por máquina, a tela com o
+estado de cada ponto, o alerta quando a verificação falha e — o que não existia —
+o alerta quando ela **para de chegar**. Um cron quebrado silenciosamente deixava o
+backup rodar sem rede de proteção e ninguém percebia.
+
+**O token do Telegram saiu das máquinas.** Antes cada cliente tinha o token do bot
+num arquivo local; agora o relatório vai para o painel e é ele quem avisa. Uma
+credencial a menos espalhada por aí.
+
+### Instalação em uma máquina
+
+```bash
+sudo cp agentes/check-mounts.sh /opt/scripts/
+sudo chmod +x /opt/scripts/check-mounts.sh
+sudo nano /opt/scripts/check-mounts.sh
+```
+
+Ajuste três coisas no topo do arquivo:
+
+```bash
+MOUNTS=(
+  "/mnt/server_cbh|cifs"      # ponto|tipo esperado — um por linha
+)
+PAINEL_URL="http://100.x.y.z:3000"
+PAINEL_TOKEN="<o mesmo token de ingestão do cliente>"
+```
+
+O token é o **mesmo** usado no `--send-http-url` do Duplicati — um por cliente.
+
+Agende no cron do root, alguns minutos antes do backup:
+
+```bash
+50 18 * * * /opt/scripts/check-mounts.sh
+```
+
+O script preserva o código de saída, então dá para encadear e **não rodar o
+backup** quando a montagem falhou:
+
+```bash
+50 18 * * * /opt/scripts/check-mounts.sh && duplicati-cli backup ...
+```
+
+Teste na hora com `sudo /opt/scripts/check-mounts.sh` — o resultado aparece em
+**Máquinas → a máquina → Verificação de montagens**.
+
+### Avisar quando a verificação parar de chegar
+
+Na mesma tela, em **Configuração → Verificação de montagens**, preencha
+**"Esperada a cada (min)"** com a frequência do backup daquela máquina (1440 para
+diário) e uma tolerância. Vazio significa registrar sem vigiar o atraso.
+
+Máquina offline absorve esse aviso, como faz com os jobs atrasados: um servidor
+desligado gera um alerta, não três.
+
+---
+
 ## 4b. Configurações pela interface
 
 **Configurações** (só para ADMIN) organiza tudo por tecnologia, uma aba por

@@ -38,6 +38,28 @@ export const ALERT_TYPE: Record<AlertType, { label: string; tone: Tone }> = {
   BACKUP_WARNING: { label: "Backup com warning", tone: "warn" },
   BACKUP_LATE: { label: "Backup atrasado", tone: "late" },
   MACHINE_OFFLINE: { label: "Máquina offline", tone: "danger" },
+  MOUNT_FAILED: { label: "Montagem com falha", tone: "danger" },
+  MOUNT_LATE: { label: "Verificação de montagem parada", tone: "warn" },
+};
+
+export const MOUNT_RESULT: Record<
+  "OK" | "RECOVERED" | "FAILED" | "UNKNOWN",
+  { label: string; tone: Tone }
+> = {
+  OK: { label: "Tudo montado", tone: "ok" },
+  RECOVERED: { label: "Recuperado", tone: "warn" },
+  FAILED: { label: "Falha", tone: "danger" },
+  UNKNOWN: { label: "Sem veredito", tone: "neutral" },
+};
+
+export const MOUNT_POINT_STATUS: Record<
+  "OK" | "REMOUNTED" | "FAILED" | "UNKNOWN",
+  { label: string; tone: Tone }
+> = {
+  OK: { label: "estável", tone: "ok" },
+  REMOUNTED: { label: "remontado", tone: "warn" },
+  FAILED: { label: "falhou", tone: "danger" },
+  UNKNOWN: { label: "desconhecido", tone: "neutral" },
 };
 
 /** Ordem de prioridade para a lista de problemas do dashboard. */

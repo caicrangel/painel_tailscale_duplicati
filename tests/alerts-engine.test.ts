@@ -19,6 +19,7 @@ function maquina(over: Partial<MaquinaSnapshot> = {}): MaquinaSnapshot {
     clientId: "cli-1",
     clientName: "Contabilidade Modelo",
     suporte: false,
+    montagem: null,
     hostname: "srv-fiscal-01",
     displayName: null,
     status: "ONLINE",
@@ -340,5 +341,101 @@ describe("transição offline → online sob correlação", () => {
 
     expect(plano.fechar.map((a) => a.id)).toEqual(["alerta-maq"]);
     expect(plano.abrir.map((c) => c.type)).toEqual(["BACKUP_LATE"]);
+  });
+});
+
+describe("verificação de montagens", () => {
+  const comMontagem = (over: Partial<NonNullable<MaquinaSnapshot["montagem"]>> = {}) =>
+    maquina({
+      montagem: {
+        ultimaEm: new Date(AGORA.getTime() - 10 * 60_000),
+        resultado: "OK",
+        pontosComFalha: 0,
+        intervaloMinutos: 1440,
+        toleranciaMinutos: 60,
+        ...over,
+      },
+    });
+
+  it("montagem OK não gera nada", () => {
+    expect(derivarCondicoes({ maquinas: [comMontagem()], jobs: [], ...opcoes })).toEqual([]);
+  });
+
+  it("falha na montagem é crítica e explica o risco ao backup", () => {
+    const c = derivarCondicoes({
+      maquinas: [comMontagem({ resultado: "FAILED", pontosComFalha: 2 })],
+      jobs: [],
+      ...opcoes,
+    });
+    expect(c).toHaveLength(1);
+    expect(c[0]!.type).toBe("MOUNT_FAILED");
+    expect(c[0]!.severity).toBe("CRITICAL");
+    expect(c[0]!.message).toContain("2 ponto(s)");
+    expect(c[0]!.message).toContain("sem copiar nada");
+  });
+
+  it("remontagem bem-sucedida não vira incidente", () => {
+    const c = derivarCondicoes({
+      maquinas: [comMontagem({ resultado: "RECOVERED" })],
+      jobs: [],
+      ...opcoes,
+    });
+    expect(c).toEqual([]);
+  });
+
+  it("verificação que parou de chegar vira alerta próprio", () => {
+    const c = derivarCondicoes({
+      maquinas: [
+        comMontagem({ ultimaEm: new Date(AGORA.getTime() - 40 * 60 * 60_000) }),
+      ],
+      jobs: [],
+      ...opcoes,
+    });
+    expect(c.map((x) => x.type)).toEqual(["MOUNT_LATE"]);
+  });
+
+  it("dentro da janela + tolerância não alerta", () => {
+    const c = derivarCondicoes({
+      maquinas: [comMontagem({ ultimaEm: new Date(AGORA.getTime() - 24 * 60 * 60_000) })],
+      jobs: [],
+      ...opcoes,
+    });
+    expect(c).toEqual([]);
+  });
+
+  it("intervalo nulo desliga só a vigilância de atraso, não a de falha", () => {
+    const semVigilancia = comMontagem({
+      intervaloMinutos: null,
+      ultimaEm: new Date(AGORA.getTime() - 40 * 24 * 60 * 60_000),
+    });
+    expect(derivarCondicoes({ maquinas: [semVigilancia], jobs: [], ...opcoes })).toEqual([]);
+
+    const falhando = comMontagem({ intervaloMinutos: null, resultado: "FAILED", pontosComFalha: 1 });
+    expect(
+      derivarCondicoes({ maquinas: [falhando], jobs: [], ...opcoes }).map((c) => c.type),
+    ).toEqual(["MOUNT_FAILED"]);
+  });
+
+  it("máquina offline absorve: não duplica o aviso de montagem parada", () => {
+    const offline = comMontagem({ ultimaEm: new Date(AGORA.getTime() - 40 * 60 * 60_000) });
+    const c = derivarCondicoes({
+      maquinas: [
+        { ...offline, status: "OFFLINE", lastSeen: new Date(AGORA.getTime() - 5 * 60 * 60_000) },
+      ],
+      jobs: [],
+      ...opcoes,
+    });
+    expect(c.map((x) => x.type)).toEqual(["MACHINE_OFFLINE"]);
+  });
+
+  it("máquina de apoio não gera alerta de montagem", () => {
+    const apoio = comMontagem({ resultado: "FAILED", pontosComFalha: 1 });
+    expect(
+      derivarCondicoes({ maquinas: [{ ...apoio, suporte: true }], jobs: [], ...opcoes }),
+    ).toEqual([]);
+  });
+
+  it("máquina sem verificação nenhuma não entra no assunto", () => {
+    expect(derivarCondicoes({ maquinas: [maquina()], jobs: [], ...opcoes })).toEqual([]);
   });
 });

@@ -69,6 +69,26 @@ enum AlertType {
   BACKUP_WARNING
   BACKUP_LATE
   MACHINE_OFFLINE
+  MOUNT_FAILED
+  MOUNT_LATE
+}
+
+/// Resultado de uma verificação de pontos de montagem.
+///   OK        — tudo montado e válido, sem intervenção
+///   RECOVERED — algum ponto precisou ser remontado, mas terminou válido
+///   FAILED    — algum ponto continua inválido; o backup não deve rodar
+enum MountCheckResult {
+  OK
+  RECOVERED
+  FAILED
+  UNKNOWN
+}
+
+enum MountPointStatus {
+  OK
+  REMOUNTED
+  FAILED
+  UNKNOWN
 }
 
 enum AlertSeverity {
@@ -207,12 +227,21 @@ model Machine {
   statusChangedAt    DateTime?
   maintenanceUntil   DateTime?
   notes              String?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
 
-  client     Client?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  backupJobs BackupJob[]
-  alerts     Alert[]
+  /// Verificação de montagens (o script que roda antes do backup).
+  /// Intervalo nulo = não vigiar atraso desta máquina; a verificação continua
+  /// sendo registrada, só não vira incidente por ausência.
+  mountCheckIntervalMinutes  Int?
+  mountCheckToleranceMinutes Int               @default(60)
+  lastMountCheckAt           DateTime?
+  lastMountCheckResult       MountCheckResult?
+  createdAt                  DateTime          @default(now())
+  updatedAt                  DateTime          @updatedAt
+
+  client      Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  backupJobs  BackupJob[]
+  alerts      Alert[]
+  mountChecks MountCheck[]
 
   @@index([clientId, status])
   @@index([role, status])
@@ -299,6 +328,66 @@ model BackupRun {
   @@index([receivedAt(sort: Desc)])
   @@index([parsedResult, receivedAt(sort: Desc)])
   @@map("backup_runs")
+}
+
+// ─── Verificação de montagens ────────────────────────────────────────────────
+
+/// Um relatório do script que roda na máquina antes do backup: ele checa (e
+/// remonta, se preciso) os pontos de montagem e reporta aqui. A ação continua
+/// local — precisa de root e das syscalls de mount; o que vem para o painel é
+/// o saber: histórico, alerta de falha e alerta de verificação que parou de
+/// chegar.
+model MountCheck {
+  id        String           @id @default(cuid())
+  machineId String
+  result    MountCheckResult @default(UNKNOWN)
+
+  pointsTotal  Int @default(0)
+  pointsFailed Int @default(0)
+
+  remounted       Boolean   @default(false)
+  durationSeconds Int?
+  bootAt          DateTime?
+  /// Reinício recente é causa comum de share desmontado — vale destacar.
+  bootRecent      Boolean   @default(false)
+
+  /// Hostname que o script informou, útil quando a máquina ainda não casou.
+  reportedHost String?
+  startedAt    DateTime?
+
+  /// Sempre gravado, antes de qualquer interpretação (regra 2 do CLAUDE.md).
+  rawPayload Json
+  parseError String?
+  receivedAt DateTime @default(now())
+
+  machine Machine           @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  points  MountCheckPoint[]
+
+  @@index([machineId, receivedAt(sort: Desc)])
+  @@index([result, receivedAt(sort: Desc)])
+  @@map("mount_checks")
+}
+
+model MountCheckPoint {
+  id           String           @id @default(cuid())
+  mountCheckId String
+  path         String
+  status       MountPointStatus @default(UNKNOWN)
+
+  fsTypeExpected String?
+  fsTypeActual   String?
+  /// Motivo, quando falhou ("sem entrada no fstab", "timeout de I/O"…).
+  detail         String?
+
+  size       String?
+  used       String?
+  available  String?
+  usePercent String?
+
+  mountCheck MountCheck @relation(fields: [mountCheckId], references: [id], onDelete: Cascade)
+
+  @@index([mountCheckId])
+  @@map("mount_check_points")
 }
 
 // ─── Alertas ─────────────────────────────────────────────────────────────────

@@ -11,6 +11,7 @@ import { MACHINE_STATUS, JOB_STATUS } from "@/lib/utils/status";
 import { fmtDataHora, fmtIntervalo, fmtRelativo } from "@/lib/utils/format";
 import { AssignForm } from "./assign-form";
 import { MergeForm } from "./merge-form";
+import { MountCard } from "./mount-card";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,12 @@ export default async function MaquinaDetalhePage({ params }: { params: Promise<{
       include: {
         client: { select: { id: true, name: true } },
         backupJobs: { orderBy: { name: "asc" } },
+        mountChecks: {
+          orderBy: { receivedAt: "desc" },
+          take: 1,
+          include: { points: { orderBy: { path: "asc" } } },
+        },
+        _count: { select: { mountChecks: true } },
       },
     }),
     prisma.client.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
@@ -107,6 +114,12 @@ export default async function MaquinaDetalhePage({ params }: { params: Promise<{
               </Table>
             )}
           </Card>
+
+          <MountCard
+            ultima={maquina.mountChecks[0] ?? null}
+            total={maquina._count.mountChecks}
+            intervaloMinutos={maquina.mountCheckIntervalMinutes}
+          />
 
           <Card>
             <CardHeader>

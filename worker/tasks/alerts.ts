@@ -41,6 +41,15 @@ export async function avaliarAlertas(now: Date = new Date()): Promise<number> {
           lastSeen: true,
           maintenanceUntil: true,
           role: true,
+          lastMountCheckAt: true,
+          lastMountCheckResult: true,
+          mountCheckIntervalMinutes: true,
+          mountCheckToleranceMinutes: true,
+          mountChecks: {
+            orderBy: { receivedAt: "desc" },
+            take: 1,
+            select: { pointsFailed: true },
+          },
           client: { select: { name: true } },
         },
       }),
@@ -70,6 +79,18 @@ export async function avaliarAlertas(now: Date = new Date()): Promise<number> {
       clientId: m.clientId,
       clientName: m.client?.name ?? null,
       suporte: m.role === "SUPORTE",
+      // Só monta o retrato quando a máquina de fato reporta verificação —
+      // máquina sem script não pode gerar alerta de montagem.
+      montagem:
+        m.lastMountCheckAt === null
+          ? null
+          : {
+              ultimaEm: m.lastMountCheckAt,
+              resultado: m.lastMountCheckResult,
+              pontosComFalha: m.mountChecks[0]?.pointsFailed ?? 0,
+              intervaloMinutos: m.mountCheckIntervalMinutes,
+              toleranciaMinutos: m.mountCheckToleranceMinutes,
+            },
       hostname: m.hostname,
       displayName: m.displayName,
       status: m.status,

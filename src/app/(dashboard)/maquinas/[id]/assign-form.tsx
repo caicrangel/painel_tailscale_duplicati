@@ -18,6 +18,9 @@ export function AssignForm({
     maintenanceUntil: Date | null;
     source: string;
     role: "CLIENTE" | "SUPORTE";
+    mountCheckIntervalMinutes: number | null;
+    mountCheckToleranceMinutes: number;
+    lastMountCheckAt: Date | null;
   };
   clientes: { id: string; name: string }[];
 }) {
@@ -100,6 +103,36 @@ export function AssignForm({
         <Field label="Observações">
           <Textarea name="notes" rows={3} defaultValue={machine.notes ?? ""} />
         </Field>
+
+        {machine.lastMountCheckAt !== null && (
+          <div className="border-t border-[var(--color-border)] pt-4">
+            <p className="mb-3 text-xs font-medium text-[var(--color-muted)]">
+              Verificação de montagens
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                label="Esperada a cada (min)"
+                hint="Vazio = não avisar quando a verificação parar de chegar."
+              >
+                <Input
+                  name="mountCheckIntervalMinutes"
+                  type="number"
+                  min={5}
+                  placeholder="1440"
+                  defaultValue={machine.mountCheckIntervalMinutes ?? ""}
+                />
+              </Field>
+              <Field label="Tolerância (min)">
+                <Input
+                  name="mountCheckToleranceMinutes"
+                  type="number"
+                  min={0}
+                  defaultValue={machine.mountCheckToleranceMinutes}
+                />
+              </Field>
+            </div>
+          </div>
+        )}
       </div>
     </ActionForm>
   );

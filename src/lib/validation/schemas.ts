@@ -64,6 +64,21 @@ export const machineSchema = z.object({
     .max(2000)
     .nullish()
     .transform((v) => (v === "" || v === null ? undefined : v)),
+  mountCheckIntervalMinutes: z
+    .union([z.string(), z.number()])
+    .nullish()
+    .transform((v) => {
+      if (v === null || v === undefined || v === "") return null;
+      const n = Number(v);
+      return Number.isFinite(n) && n >= 5 ? Math.round(n) : null;
+    }),
+  mountCheckToleranceMinutes: z
+    .union([z.string(), z.number()])
+    .nullish()
+    .transform((v) => {
+      const n = Number(v);
+      return Number.isFinite(n) && n >= 0 ? Math.round(n) : 60;
+    }),
   maintenanceUntil: z
     .string()
     .trim()

@@ -27,6 +27,17 @@ export type MaquinaSnapshot = {
   status: MachineStatus;
   lastSeen: Date | null;
   maintenanceUntil: Date | null;
+  /** Verificação de montagens, quando esta máquina reporta uma. */
+  montagem: MontagemSnapshot | null;
+};
+
+export type MontagemSnapshot = {
+  ultimaEm: Date | null;
+  resultado: "OK" | "RECOVERED" | "FAILED" | "UNKNOWN" | null;
+  pontosComFalha: number;
+  /** Nulo = não vigiar atraso desta verificação. */
+  intervaloMinutos: number | null;
+  toleranciaMinutos: number;
 };
 
 export type JobSnapshot = {
@@ -76,6 +87,8 @@ export const chaveMaquinaOffline = (machineId: string) => `machine_offline:machi
 export const chaveJobAtrasado = (jobId: string) => `backup_late:job:${jobId}`;
 export const chaveJobFalhou = (jobId: string) => `backup_failed:job:${jobId}`;
 export const chaveJobWarning = (jobId: string) => `backup_warning:job:${jobId}`;
+export const chaveMontagemFalhou = (machineId: string) => `mount_failed:machine:${machineId}`;
+export const chaveMontagemParada = (machineId: string) => `mount_late:machine:${machineId}`;
 
 // ─── Derivação das condições ─────────────────────────────────────────────────
 
@@ -161,6 +174,65 @@ export function derivarCondicoes(params: {
       relatedJobIds: atrasados.map((j) => j.id),
       context: { minutosOffline: minutos, jobsAtrasados: atrasados.length },
     });
+  }
+
+  for (const maquina of maquinas) {
+    const montagem = maquina.montagem;
+    if (!montagem) continue;
+    if (maquina.suporte) continue;
+    if (maquina.clientId === null) continue;
+    if (emManutencao(maquina, now)) continue;
+    // Máquina offline já explica a ausência da verificação: o alerta dela
+    // absorve, como faz com os jobs atrasados.
+    if (maquinasAbsorvendo.has(maquina.id)) continue;
+
+    if (montagem.resultado === "FAILED") {
+      condicoes.push({
+        dedupeKey: chaveMontagemFalhou(maquina.id),
+        type: "MOUNT_FAILED",
+        severity: "CRITICAL",
+        title: `Montagem com falha em ${nomeMaquina(maquina)}`,
+        message:
+          `A verificação de montagens de ${nomeMaquina(maquina)}` +
+          `${maquina.clientName ? ` (${maquina.clientName})` : ""} apontou ` +
+          `${montagem.pontosComFalha} ponto(s) com problema. ` +
+          "O backup desta máquina não deve rodar até isso ser resolvido — " +
+          "com o share fora, ele terminaria \"com sucesso\" sem copiar nada.",
+        clientId: maquina.clientId,
+        machineId: maquina.id,
+        backupJobId: null,
+        backupRunId: null,
+        relatedJobIds: [],
+        context: { pontosComFalha: montagem.pontosComFalha },
+      });
+      continue;
+    }
+
+    // Verificação que parou de chegar: mesmo princípio do backup atrasado.
+    // Sem ela, o backup roda sem rede de proteção e ninguém percebe.
+    if (montagem.intervaloMinutos !== null) {
+      const limite = (montagem.intervaloMinutos + montagem.toleranciaMinutos) * 60_000;
+      const ancora = montagem.ultimaEm;
+      if (ancora !== null && now.getTime() - ancora.getTime() > limite) {
+        const minutos = Math.floor((now.getTime() - ancora.getTime()) / 60_000);
+        condicoes.push({
+          dedupeKey: chaveMontagemParada(maquina.id),
+          type: "MOUNT_LATE",
+          severity: "WARNING",
+          title: `Verificação de montagem parada em ${nomeMaquina(maquina)}`,
+          message:
+            `A última verificação de montagens de ${nomeMaquina(maquina)} chegou há ` +
+            `${descreverAtraso(minutos)}. O backup pode estar rodando sem a checagem ` +
+            "que garante que os pontos estão no ar.",
+          clientId: maquina.clientId,
+          machineId: maquina.id,
+          backupJobId: null,
+          backupRunId: null,
+          relatedJobIds: [],
+          context: { minutosSemVerificacao: minutos },
+        });
+      }
+    }
   }
 
   for (const job of jobs) {
@@ -280,6 +352,10 @@ export function mensagemDeRecuperacao(alerta: AlertaAberto, titulo: string): str
       return `✅ Resolvido: ${titulo}. A última execução terminou sem erro.`;
     case "BACKUP_WARNING":
       return `✅ Resolvido: ${titulo}. A última execução terminou limpa.`;
+    case "MOUNT_FAILED":
+      return `✅ Resolvido: ${titulo}. Os pontos de montagem voltaram a responder.`;
+    case "MOUNT_LATE":
+      return `✅ Resolvido: ${titulo}. A verificação de montagens voltou a chegar.`;
     default:
       return `✅ Resolvido: ${titulo}.`;
   }

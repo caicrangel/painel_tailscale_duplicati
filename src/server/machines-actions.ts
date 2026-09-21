@@ -64,6 +64,8 @@ export async function atualizarMaquina(id: string, formData: FormData): Promise<
     displayName: formData.get("displayName"),
     notes: formData.get("notes"),
     maintenanceUntil: formData.get("maintenanceUntil"),
+    mountCheckIntervalMinutes: formData.get("mountCheckIntervalMinutes"),
+    mountCheckToleranceMinutes: formData.get("mountCheckToleranceMinutes"),
   });
   if (!parsed.success) return { ok: false, error: primeiroErro(parsed.error) };
 
@@ -80,6 +82,8 @@ export async function atualizarMaquina(id: string, formData: FormData): Promise<
       displayName: parsed.data.displayName ?? null,
       notes: parsed.data.notes ?? null,
       maintenanceUntil: parsed.data.maintenanceUntil ?? null,
+      mountCheckIntervalMinutes: parsed.data.mountCheckIntervalMinutes,
+      mountCheckToleranceMinutes: parsed.data.mountCheckToleranceMinutes,
     },
   });
 
