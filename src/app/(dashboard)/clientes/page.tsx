@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, Td, Th, Tr, EmptyState } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { MACHINE_STATUS } from "@/lib/utils/status";
+import { StatusSummary } from "@/components/status-summary";
 
 export const metadata = { title: "Clientes · Painel" };
 export const dynamic = "force-dynamic";
@@ -25,7 +25,9 @@ export default async function ClientesPage() {
   const clientes = await prisma.client.findMany({
     orderBy: [{ active: "desc" }, { name: "asc" }],
     include: {
-      machines: { select: { status: true } },
+      machines: {
+        select: { status: true, backupJobs: { select: { status: true } } },
+      },
       _count: { select: { machines: true, ingestTokens: true } },
     },
   });
@@ -60,14 +62,19 @@ export default async function ClientesPage() {
                 <Th>Cliente</Th>
                 <Th>Plano</Th>
                 <Th>Máquinas</Th>
-                <Th>Online</Th>
+                <Th>Backups</Th>
                 <Th>Situação</Th>
               </tr>
             </thead>
             <tbody>
               {clientes.map((c) => {
-                const online = c.machines.filter((m) => m.status === "ONLINE").length;
-                const offline = c.machines.filter((m) => m.status === "OFFLINE").length;
+                const conta = (status: string) =>
+                  c.machines.filter((m) => m.status === status).length;
+
+                const jobs = c.machines.flatMap((m) => m.backupJobs);
+                const contaJob = (status: string) =>
+                  jobs.filter((j) => j.status === status).length;
+
                 return (
                   <Tr key={c.id}>
                     <Td>
@@ -81,20 +88,35 @@ export default async function ClientesPage() {
                         <p className="text-xs text-[var(--color-faint)]">{c.contactEmail}</p>
                       )}
                     </Td>
+
                     <Td className="text-[var(--color-muted)]">{PLANO_LABEL[c.plan]}</Td>
-                    <Td className="tabular-nums">{c._count.machines}</Td>
+
                     <Td>
-                      <div className="flex items-center gap-1.5">
-                        <Badge tone={MACHINE_STATUS.ONLINE.tone} dot>
-                          {online}
-                        </Badge>
-                        {offline > 0 && (
-                          <Badge tone={MACHINE_STATUS.OFFLINE.tone} dot>
-                            {offline}
-                          </Badge>
-                        )}
-                      </div>
+                      <StatusSummary
+                        vazio="nenhuma máquina"
+                        itens={[
+                          { valor: conta("ONLINE"), label: "online", tone: "ok" },
+                          { valor: conta("IDLE"), label: "ociosa(s)", tone: "idle" },
+                          { valor: conta("OFFLINE"), label: "offline", tone: "danger" },
+                          { valor: conta("UNKNOWN"), label: "sem contato", tone: "neutral" },
+                        ]}
+                      />
                     </Td>
+
+                    <Td>
+                      <StatusSummary
+                        vazio="nenhum job"
+                        itens={[
+                          { valor: contaJob("LATE"), label: "atrasado(s)", tone: "late" },
+                          { valor: contaJob("ERROR"), label: "com erro", tone: "danger" },
+                          { valor: contaJob("WARNING"), label: "warning", tone: "warn" },
+                          { valor: contaJob("OK"), label: "OK", tone: "ok" },
+                          { valor: contaJob("UNKNOWN"), label: "sem dados", tone: "neutral" },
+                          { valor: contaJob("PAUSED"), label: "pausado(s)", tone: "neutral" },
+                        ]}
+                      />
+                    </Td>
+
                     <Td>
                       <Badge tone={c.active ? "ok" : "neutral"}>
                         {c.active ? "Ativo" : "Inativo"}
