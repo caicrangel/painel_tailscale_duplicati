@@ -10,6 +10,7 @@ import { Table, Td, Th, Tr, EmptyState } from "@/components/ui/table";
 import { MACHINE_STATUS, JOB_STATUS } from "@/lib/utils/status";
 import { fmtDataHora, fmtIntervalo, fmtRelativo } from "@/lib/utils/format";
 import { AssignForm } from "./assign-form";
+import { MergeForm } from "./merge-form";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ export default async function MaquinaDetalhePage({ params }: { params: Promise<{
   const { id } = await params;
   const user = await requireUser();
 
-  const [maquina, clientes] = await Promise.all([
+  const [maquina, clientes, devicesTailscale] = await Promise.all([
     prisma.machine.findUnique({
       where: { id },
       include: {
@@ -26,6 +27,11 @@ export default async function MaquinaDetalhePage({ params }: { params: Promise<{
       },
     }),
     prisma.client.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.machine.findMany({
+      where: { tailscaleDeviceId: { not: null } },
+      orderBy: { hostname: "asc" },
+      select: { id: true, hostname: true, displayName: true, client: { select: { name: true } } },
+    }),
   ]);
 
   if (!maquina) notFound();
@@ -129,7 +135,21 @@ export default async function MaquinaDetalhePage({ params }: { params: Promise<{
             </CardHeader>
             <CardBody>
               {podeAtuarComo(user.role, "OPERATOR") ? (
-                <AssignForm machine={maquina} clientes={clientes} />
+                <div className="space-y-5">
+                  <AssignForm machine={maquina} clientes={clientes} />
+                  {maquina.tailscaleDeviceId === null && (
+                    <div className="border-t border-[var(--color-border)] pt-5">
+                      <MergeForm
+                        machineId={maquina.id}
+                        hostname={maquina.hostname}
+                        devices={devicesTailscale.map((d) => ({
+                          id: d.id,
+                          rotulo: `${d.displayName ?? d.hostname}${d.client ? ` · ${d.client.name}` : " · sem cliente"}`,
+                        }))}
+                      />
+                    </div>
+                  )}
+                </div>
               ) : (
                 <p className="text-sm text-[var(--color-muted)]">
                   Somente operadores e administradores podem alterar a máquina.

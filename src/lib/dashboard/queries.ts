@@ -148,6 +148,28 @@ function traduzirPior(valor: number): DiaDaFaixa["resultado"] {
   }
 }
 
+/**
+ * Tolerância de atraso por tipo de ciclo. Um único limite para todos não
+ * funciona: a manutenção roda de hora em hora e ficaria permanentemente
+ * "atrasada", gerando um alarme falso que ensina o operador a ignorar o aviso.
+ * Cada valor é folgado em relação à frequência real da tarefa.
+ */
+export const LIMITE_CICLO_MINUTOS: Record<string, number> = {
+  TAILSCALE: 15, // roda a cada 2 min
+  LATE_CHECK: 20, // a cada 5 min
+  ALERTS: 15, // a cada 1 min
+  NOTIFY: 15, // a cada 1 min
+  MAINTENANCE: 180, // a cada 1 hora
+};
+
+/** Ciclo desconhecido (kind novo) usa este limite. */
+export const LIMITE_CICLO_PADRAO = 60;
+
+export function cicloAtrasado(kind: string, startedAt: Date, agora: Date): boolean {
+  const limite = LIMITE_CICLO_MINUTOS[kind] ?? LIMITE_CICLO_PADRAO;
+  return agora.getTime() - startedAt.getTime() > limite * 60_000;
+}
+
 /** Saúde do próprio monitoramento: sem isto, "tudo verde" pode ser worker morto. */
 export async function carregarSaudeDoWorker() {
   const ciclos = await prisma.syncLog.findMany({

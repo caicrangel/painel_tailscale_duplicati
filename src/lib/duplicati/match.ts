@@ -26,3 +26,29 @@ export function chaveDoJob(backupId: string | null, backupName: string | null): 
   if (backupName) return `name:${backupName.trim().toLowerCase()}`;
   return "default";
 }
+
+/** O que é preciso saber de uma máquina para decidir se o relatório é dela. */
+export type CandidataDeMaquina = {
+  hostname: string;
+  displayName: string | null;
+  /** Apelidos registrados quando um operador mesclou máquinas na UI. */
+  duplicatiHostnames: string[];
+};
+
+/**
+ * Decide se o `machine-name` do relatório pertence a esta máquina.
+ *
+ * O hostname do Tailscale e o nome que o Duplicati reporta divergem com
+ * frequência — um device "cliente-saolucas.tailnet.ts.net" pode se apresentar
+ * como "srv-betania". Por isso os apelidos registrados na mesclagem valem
+ * tanto quanto o hostname: sem eles, a mesclagem feita na UI se desfaria no
+ * backup seguinte, recriando a máquina duplicada.
+ */
+export function maquinaCasa(
+  maquina: CandidataDeMaquina,
+  machineName: string | null | undefined,
+): boolean {
+  if (mesmoHost(maquina.hostname, machineName)) return true;
+  if (mesmoHost(maquina.displayName, machineName)) return true;
+  return maquina.duplicatiHostnames.some((apelido) => mesmoHost(apelido, machineName));
+}

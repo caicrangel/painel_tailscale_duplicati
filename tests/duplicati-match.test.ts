@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chaveDoJob, mesmoHost, normalizarHostname } from "@/lib/duplicati/match";
+import { chaveDoJob, maquinaCasa, mesmoHost, normalizarHostname } from "@/lib/duplicati/match";
 
 describe("normalizarHostname", () => {
   it("baixa a caixa e corta o domínio MagicDNS", () => {
@@ -44,5 +44,42 @@ describe("chaveDoJob", () => {
 
   it("é estável entre relatórios do mesmo job", () => {
     expect(chaveDoJob(null, "Dados Fiscais")).toBe(chaveDoJob(null, "  dados fiscais  "));
+  });
+});
+
+describe("maquinaCasa — apelidos registrados na mesclagem", () => {
+  const device = {
+    hostname: "cliente-saolucas",
+    displayName: "cliente-saolucas.tail3a6628.ts.net",
+    duplicatiHostnames: [] as string[],
+  };
+
+  it("casa pelo hostname do Tailscale", () => {
+    expect(maquinaCasa(device, "cliente-saolucas")).toBe(true);
+  });
+
+  it("casa pelo nome completo com domínio MagicDNS", () => {
+    expect(maquinaCasa(device, "cliente-saolucas.tail3a6628.ts.net")).toBe(true);
+  });
+
+  it("NÃO casa quando o Duplicati usa outro nome — é o caso que gera a duplicata", () => {
+    expect(maquinaCasa(device, "srv-betania")).toBe(false);
+  });
+
+  it("passa a casar depois que o apelido é registrado pela mesclagem", () => {
+    const mesclada = { ...device, duplicatiHostnames: ["srv-betania"] };
+    expect(maquinaCasa(mesclada, "srv-betania")).toBe(true);
+    expect(maquinaCasa(mesclada, "SRV-BETANIA.qualquer.dominio")).toBe(true);
+  });
+
+  it("apelido não faz casar qualquer nome", () => {
+    const mesclada = { ...device, duplicatiHostnames: ["srv-betania"] };
+    expect(maquinaCasa(mesclada, "srv-outra")).toBe(false);
+  });
+
+  it("machine-name ausente nunca casa", () => {
+    const mesclada = { ...device, duplicatiHostnames: ["srv-betania"] };
+    expect(maquinaCasa(mesclada, null)).toBe(false);
+    expect(maquinaCasa(mesclada, undefined)).toBe(false);
   });
 });

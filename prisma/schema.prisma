@@ -177,6 +177,11 @@ model Machine {
   source             MachineSource @default(TAILSCALE)
   tailscaleDeviceId  String?       @unique
   duplicatiMachineId String? // Extra.machine-id do Duplicati
+  /// Nomes pelos quais o Duplicati chama esta máquina. O hostname no Tailscale
+  /// e o machine-name do Duplicati costumam divergir (um device
+  /// "cliente-x.tailnet.ts.net" pode reportar como "srv-betania"), e sem
+  /// registrar o apelido a mesclagem feita na UI se desfaria no próximo backup.
+  duplicatiHostnames String[]      @default([])
   hostname           String
   displayName        String?
   os                 String?

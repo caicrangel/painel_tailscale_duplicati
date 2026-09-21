@@ -311,6 +311,16 @@ do banco. Duas consequências práticas: execuções recebidas antes desta tela 
 também mostram o resumo, e campos que o Duplicati acrescentar em versões futuras
 aparecem sem precisar de migração.
 
+**Máquina duplicada.** O hostname no Tailscale e o `machine-name` que o Duplicati
+reporta costumam divergir — um device `cliente-x.tailnet.ts.net` pode se apresentar
+como `srv-betania`. Quando isso acontece, o mesmo servidor aparece duas vezes: uma
+com status de rede e sem jobs, outra com os jobs e sem status.
+
+Para unir: **Máquinas → a máquina criada pelo Duplicati → "Unir a um device do
+Tailscale"**. Os jobs e o histórico passam para o device, e o nome usado pelo
+Duplicati fica registrado como apelido — é o apelido que impede a duplicata de
+voltar no backup seguinte.
+
 **Removendo um job.** Se o job deixou de existir no Duplicati, remova aqui também
 (botão no topo da tela do job, só para ADMIN) — senão ele vira "atrasado" para
 sempre. A remoção apaga o histórico de execuções junto. Se o job ainda existir na

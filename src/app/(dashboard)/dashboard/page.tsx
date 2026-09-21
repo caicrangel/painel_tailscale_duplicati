@@ -15,6 +15,7 @@ import {
   carregarProblemas,
   carregarResumo,
   carregarSaudeDoWorker,
+  cicloAtrasado,
 } from "@/lib/dashboard/queries";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardHeader, CardTitle, CardBody } from "@/components/ui/card";
@@ -27,9 +28,6 @@ import { fmtDataHora, fmtRelativo } from "@/lib/utils/format";
 
 export const metadata = { title: "Dashboard · Painel" };
 export const dynamic = "force-dynamic";
-
-/** Ciclo do worker parado há mais que isto é sinal de monitoramento cego. */
-const LIMITE_CICLO_MIN = 15;
 
 export default async function DashboardPage() {
   await requireUser();
@@ -54,9 +52,7 @@ export default async function DashboardPage() {
   const faixas = await carregarFaixas(jobsCriticos.map((j) => j.id), 14);
 
   const agora = new Date();
-  const cicloVelho = saude.find(
-    (c) => agora.getTime() - c.startedAt.getTime() > LIMITE_CICLO_MIN * 60_000,
-  );
+  const cicloVelho = saude.find((c) => cicloAtrasado(c.kind, c.startedAt, agora));
   const cicloComErro = saude.find((c) => !c.ok);
 
   const problemasCriticos = resumo.alertas.criticos;

@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { calcularStatusJob, carenciaInicial } from "@/lib/jobs/late";
 import type { RelatorioDuplicati } from "./payload";
-import { chaveDoJob, mesmoHost, normalizarHostname } from "./match";
+import { chaveDoJob, maquinaCasa, normalizarHostname } from "./match";
 import type { AppSettings } from "@/lib/config/settings";
 
 /** Máquina-balde para relatórios que não trazem identificação nenhuma. */
@@ -44,12 +44,16 @@ async function resolverMaquina(
     // Só busca dentro do cliente do token: dois clientes podem ter um "SERVIDOR".
     const candidatas = await prisma.machine.findMany({
       where: { clientId },
-      select: { id: true, hostname: true, displayName: true, duplicatiMachineId: true },
+      select: {
+        id: true,
+        hostname: true,
+        displayName: true,
+        duplicatiMachineId: true,
+        duplicatiHostnames: true,
+      },
     });
 
-    const casada = candidatas.find(
-      (m) => mesmoHost(m.hostname, relatorio.machineName) || mesmoHost(m.displayName, relatorio.machineName),
-    );
+    const casada = candidatas.find((m) => maquinaCasa(m, relatorio.machineName));
 
     if (casada) {
       // Guarda o machine-id para os próximos relatórios caírem direto no passo 1.
