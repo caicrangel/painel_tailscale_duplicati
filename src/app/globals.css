@@ -1,6 +1,14 @@
 @import "tailwindcss";
 
-/* Painel de operação: tema escuro por padrão, claro disponível via [data-theme="light"]. */
+/*
+ * Tema de operação.
+ *
+ * O escuro é o default do documento; o claro vem por [data-theme="light"].
+ * A opção "sistema" NÃO usa @media (prefers-color-scheme) aqui de propósito:
+ * o script em theme-script.tsx resolve a preferência e grava o tema efetivo no
+ * atributo data-theme. Assim a paleta clara é declarada uma vez só, sem dois
+ * blocos para manter em sincronia — e sem risco de eles divergirem.
+ */
 @theme {
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
@@ -33,20 +41,37 @@
   color-scheme: dark;
 }
 
+/*
+ * Paleta clara. Não é um espelho automático da escura: os tons de status foram
+ * escurecidos para manter contraste >= 3:1 sobre superfície branca (verificado
+ * com o validador de paleta). Os fundos "-dim" também são próprios daqui — o
+ * alfa que funciona sobre #121820 fica lavado sobre #ffffff.
+ */
 :root[data-theme="light"] {
   color-scheme: light;
+
   --color-bg: #f6f8fa;
   --color-surface: #ffffff;
   --color-surface-2: #f0f3f6;
   --color-border: #d8dee4;
+  --color-border-strong: #afb8c1;
+
   --color-fg: #1f2328;
   --color-muted: #59636e;
+  --color-faint: #818b98;
+
   --color-ok: #1a7f37;
+  --color-ok-dim: #1a7f3714;
   --color-warn: #9a6700;
+  --color-warn-dim: #9a670014;
   --color-danger: #cf222e;
+  --color-danger-dim: #cf222e14;
   --color-late: #8250df;
+  --color-late-dim: #8250df14;
   --color-info: #0969da;
+  --color-info-dim: #0969da14;
   --color-idle: #59636e;
+  --color-idle-dim: #59636e14;
 }
 
 html, body {

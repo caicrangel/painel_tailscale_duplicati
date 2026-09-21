@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { ShieldCheck } from "lucide-react";
 import { LoginForm } from "./login-form";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export const metadata: Metadata = { title: "Entrar · Painel" };
 
@@ -30,6 +31,10 @@ export default function LoginPage() {
         <p className="mt-6 text-center text-xs text-[var(--color-faint)]">
           Acesso restrito à equipe. Não há cadastro público.
         </p>
+
+        <div className="mt-4 flex justify-center">
+          <ThemeToggle />
+        </div>
       </div>
     </main>
   );
