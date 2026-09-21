@@ -10,6 +10,7 @@ import {
   HardDriveDownload,
   BellRing,
   Users,
+  Settings,
   ShieldCheck,
   LogOut,
   PanelLeftClose,
@@ -28,6 +29,7 @@ const ITENS = [
   { href: "/jobs", label: "Jobs de backup", Icone: HardDriveDownload, minimo: "VIEWER" as Role },
   { href: "/alertas", label: "Alertas", Icone: BellRing, minimo: "VIEWER" as Role },
   { href: "/usuarios", label: "Usuários", Icone: Users, minimo: "ADMIN" as Role },
+  { href: "/configuracoes", label: "Configurações", Icone: Settings, minimo: "ADMIN" as Role },
 ];
 
 const CHAVE = "painel.menu-recolhido";

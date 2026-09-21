@@ -271,3 +271,15 @@ export function mensagemDeRecuperacao(alerta: AlertaAberto, titulo: string): str
       return `✅ Resolvido: ${titulo}.`;
   }
 }
+
+/** Versão em texto puro do alerta, para canais que não interpretam HTML (e-mail). */
+export function formatarAlertaSimples(params: {
+  severity: AlertSeverity;
+  title: string;
+  message: string;
+  clientName?: string | null;
+}): string {
+  const linhas = [params.title, "", params.message];
+  if (params.clientName) linhas.push("", `Cliente: ${params.clientName}`);
+  return linhas.join("\n");
+}

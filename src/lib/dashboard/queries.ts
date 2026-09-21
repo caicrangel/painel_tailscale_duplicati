@@ -160,6 +160,7 @@ export const LIMITE_CICLO_MINUTOS: Record<string, number> = {
   ALERTS: 15, // a cada 1 min
   NOTIFY: 15, // a cada 1 min
   MAINTENANCE: 180, // a cada 1 hora
+  RESUMO: 15, // avaliado a cada 1 min
 };
 
 /** Ciclo desconhecido (kind novo) usa este limite. */

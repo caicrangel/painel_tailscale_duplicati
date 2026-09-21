@@ -8,6 +8,7 @@ import {
   type JobSnapshot,
   type MaquinaSnapshot,
 } from "@/lib/alerts/engine";
+import { getSmtpConfig, getTelegramConfig } from "@/lib/config/integracoes";
 import { registrarCiclo } from "../lib/sync-log";
 
 /**
@@ -20,6 +21,14 @@ import { registrarCiclo } from "../lib/sync-log";
 export async function avaliarAlertas(now: Date = new Date()): Promise<number> {
   return registrarCiclo("ALERTS", async () => {
     const settings = await getSettings();
+
+    // Um envio por canal habilitado: Telegram e e-mail têm sucesso, erro e
+    // retry independentes.
+    const [telegram, smtp] = await Promise.all([getTelegramConfig(), getSmtpConfig()]);
+    const canais = [
+      ...(telegram.enabled ? ["telegram"] : []),
+      ...(smtp.enabled ? ["email"] : []),
+    ];
 
     const [maquinasDb, jobsDb, abertosDb] = await Promise.all([
       prisma.machine.findMany({
@@ -114,9 +123,11 @@ export async function avaliarAlertas(now: Date = new Date()): Promise<number> {
           select: { id: true },
         });
 
-        await prisma.alertNotification.create({
-          data: { alertId: alerta.id, kind: "OPEN", channel: "telegram" },
-        });
+        if (canais.length > 0) {
+          await prisma.alertNotification.createMany({
+            data: canais.map((channel) => ({ alertId: alerta.id, kind: "OPEN" as const, channel })),
+          });
+        }
         acoes += 1;
       } catch (e) {
         // Índice único parcial: outro ciclo abriu o mesmo incidente primeiro.
@@ -143,13 +154,11 @@ export async function avaliarAlertas(now: Date = new Date()): Promise<number> {
     for (const alerta of plano.fechar) {
       const registro = abertosDb.find((a) => a.id === alerta.id);
       await prisma.alert.update({ where: { id: alerta.id }, data: { closedAt: now } });
-      await prisma.alertNotification.create({
-        data: {
-          alertId: alerta.id,
-          kind: "RECOVERY",
-          channel: "telegram",
-        },
-      });
+      if (canais.length > 0) {
+        await prisma.alertNotification.createMany({
+          data: canais.map((channel) => ({ alertId: alerta.id, kind: "RECOVERY" as const, channel })),
+        });
+      }
       void mensagemDeRecuperacao(alerta, registro?.title ?? "incidente");
       acoes += 1;
     }

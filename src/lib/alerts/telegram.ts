@@ -1,4 +1,4 @@
-import { env } from "@/lib/config/env";
+import { getTelegramConfig } from "@/lib/config/integracoes";
 
 /**
  * Envio para o Telegram. Canal best-effort: a UI é a fonte da verdade
@@ -17,19 +17,20 @@ export function escaparHtml(texto: string): string {
 export async function enviarTelegram(params: {
   texto: string;
   chatId?: string | null;
+  /** Ignora o switch de habilitado — usado pelo botão "enviar teste". */
+  forcar?: boolean;
 }): Promise<ResultadoEnvio> {
-  const e = env();
+  const config = await getTelegramConfig();
 
-  if (!e.TELEGRAM_ENABLED) {
-    return { ok: false, erro: "Telegram desabilitado (TELEGRAM_ENABLED=false)." };
+  if (!config.enabled && !params.forcar) {
+    return { ok: false, erro: "Telegram desabilitado nas configurações." };
   }
 
-  const token = e.TELEGRAM_BOT_TOKEN;
-  const chat = params.chatId ?? e.TELEGRAM_CHAT_ID;
+  const token = config.botToken;
+  const chat = params.chatId ?? config.chatId;
 
-  if (!token || !chat) {
-    return { ok: false, erro: "TELEGRAM_BOT_TOKEN ou TELEGRAM_CHAT_ID não configurado." };
-  }
+  if (!token) return { ok: false, erro: "Token do bot não configurado." };
+  if (!chat) return { ok: false, erro: "Chat ID não configurado." };
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);

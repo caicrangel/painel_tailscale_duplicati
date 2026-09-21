@@ -23,6 +23,7 @@ const schema = z.object({
   APP_BASE_URL: z.string().default("http://localhost:3000"),
 
   AUTH_SECRET: z.string().optional(),
+  SETTINGS_ENCRYPTION_KEY: z.string().optional(),
   AUTH_COOKIE_SECURE: boolish,
 
   SEED_ADMIN_EMAIL: z.string().optional(),

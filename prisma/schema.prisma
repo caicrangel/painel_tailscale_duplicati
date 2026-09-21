@@ -84,6 +84,7 @@ enum SyncKind {
   ALERTS
   NOTIFY
   MAINTENANCE
+  RESUMO
 }
 
 // ─── Usuários e auditoria ────────────────────────────────────────────────────
@@ -339,7 +340,9 @@ model AlertNotification {
 
   alert Alert @relation(fields: [alertId], references: [id], onDelete: Cascade)
 
-  @@unique([alertId, kind])
+  // Um envio por canal: o mesmo incidente pode ir para o Telegram e para o
+  // e-mail, e cada um tem seu próprio sucesso, erro e retry.
+  @@unique([alertId, kind, channel])
   @@index([status, createdAt])
   @@map("alert_notifications")
 }

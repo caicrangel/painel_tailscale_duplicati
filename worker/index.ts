@@ -7,6 +7,7 @@ import { verificarAtrasos } from "./tasks/late-check";
 import { avaliarAlertas } from "./tasks/alerts";
 import { despacharNotificacoes } from "./tasks/notify";
 import { manutencao } from "./tasks/maintenance";
+import { enviarResumoPeriodico } from "./tasks/resumo";
 
 /**
  * Worker do painel. Processo separado do Next, mesmo repositório e mesmo
@@ -26,6 +27,8 @@ const TAREFAS = [
   { nome: "alerts", cron: e.CRON_ALERTS, executar: () => avaliarAlertas() },
   { nome: "notify", cron: e.CRON_NOTIFY, executar: () => despacharNotificacoes() },
   { nome: "maintenance", cron: "17 * * * *", executar: () => manutencao() },
+  // Avaliado a cada minuto; a tarefa decide se já passou do horário do dia.
+  { nome: "resumo", cron: "* * * * *", executar: () => enviarResumoPeriodico() },
 ] as const;
 
 const tailscaleConfigurado = Boolean(

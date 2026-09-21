@@ -355,6 +355,36 @@ consultar a API do Duplicati em cada máquina, previsto para a Fase 2.
 
 ---
 
+## 4b. Configurações pela interface
+
+**Configurações** (só para ADMIN) organiza tudo por tecnologia, uma aba por
+integração:
+
+- **Telegram** — token do bot, chat, switch de envio, botão de teste, e o resumo
+  periódico (horário, canais e se lista também os jobs que rodaram bem).
+- **E-mail (SMTP)** — servidor, porta, criptografia, credenciais, remetente e
+  destinatários, com botão de teste. Funciona junto com o Telegram: com os dois
+  ligados, cada incidente vai pelos dois canais, cada um com seu próprio retry.
+- **Monitoramento** — limiares de online/ociosa/offline, padrões de frequência e
+  tolerância para jobs novos, retenção do payload e o alerta opcional de warning.
+- **Sistema** — diagnóstico: quando cada ciclo do worker rodou, se falhou, números
+  do banco e o que está configurado no Tailscale.
+
+O que é salvo aqui sobrescreve a variável de ambiente correspondente e vale sem
+reiniciar container. Quem já configurou tudo pelo `.env` continua funcionando —
+a tela só assume quando você preenche.
+
+**Sobre os segredos.** Token de bot e senha de SMTP são guardados **cifrados**
+(AES-256-GCM) e nunca voltam para a tela: o campo mostra apenas que existe um
+valor salvo, e deixá-lo em branco mantém o atual. A chave vem de
+`SETTINGS_ENCRYPTION_KEY` (ou do `AUTH_SECRET`, se aquela não estiver definida) —
+trocá-la torna os segredos salvos ilegíveis, e aí é só reconfigurar pela tela.
+
+As credenciais do Tailscale continuam **só em variável de ambiente**: são
+credenciais de infraestrutura, não configuração de operação.
+
+---
+
 ## 5. Alertas
 
 Disparam por: job com erro/fatal, job atrasado e máquina offline além do limite.

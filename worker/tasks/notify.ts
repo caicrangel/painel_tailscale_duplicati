@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/config/env";
 import { enviarTelegram, formatarMensagemAlerta } from "@/lib/alerts/telegram";
-import { mensagemDeRecuperacao } from "@/lib/alerts/engine";
+import { enviarEmail, escaparHtmlEmail, montarHtml } from "@/lib/alerts/email";
+import { formatarAlertaSimples, mensagemDeRecuperacao } from "@/lib/alerts/engine";
 import { registrarCiclo } from "../lib/sync-log";
 
 /** Depois de 5 tentativas o envio para de ser retentado; o alerta continua na UI. */
@@ -34,6 +35,29 @@ export async function despacharNotificacoes(now: Date = new Date()): Promise<num
     for (const notificacao of pendentes) {
       const alerta = notificacao.alert;
 
+      const recuperacao = () =>
+        mensagemDeRecuperacao(
+          {
+            id: alerta.id,
+            dedupeKey: alerta.dedupeKey,
+            type: alerta.type,
+            relatedJobIds: alerta.relatedJobIds,
+          },
+          alerta.title,
+        );
+
+      // O Telegram recebe HTML; o e-mail recebe texto puro e é envelopado no
+      // seu próprio HTML. Mandar o markup de um no outro vaza tag na mensagem.
+      const textoSimples =
+        notificacao.kind === "OPEN"
+          ? formatarAlertaSimples({
+              severity: alerta.severity,
+              title: alerta.title,
+              message: alerta.message,
+              clientName: alerta.client?.name ?? null,
+            })
+          : recuperacao();
+
       const texto =
         notificacao.kind === "OPEN"
           ? formatarMensagemAlerta({
@@ -43,21 +67,23 @@ export async function despacharNotificacoes(now: Date = new Date()): Promise<num
               clientName: alerta.client?.name ?? null,
               url: `${baseUrl}/alertas`,
             })
-          : mensagemDeRecuperacao(
-              {
-                id: alerta.id,
-                dedupeKey: alerta.dedupeKey,
-                type: alerta.type,
-                relatedJobIds: alerta.relatedJobIds,
-              },
-              alerta.title,
-            );
+          : recuperacao();
 
-      const resultado = await enviarTelegram({
-        texto,
-        // Chat por cliente quando houver; senão cai no chat global.
-        chatId: alerta.client?.telegramChatId ?? null,
-      });
+      const resultado =
+        notificacao.channel === "email"
+          ? await enviarEmail({
+              assunto:
+                notificacao.kind === "OPEN"
+                  ? `[${alerta.severity}] ${alerta.title}`
+                  : `[resolvido] ${alerta.title}`,
+              texto: textoSimples,
+              html: montarHtml(alerta.title, escaparHtmlEmail(textoSimples)),
+            })
+          : await enviarTelegram({
+              texto,
+              // Chat por cliente quando houver; senão cai no chat global.
+              chatId: alerta.client?.telegramChatId ?? null,
+            });
 
       if (resultado.ok) {
         await prisma.alertNotification.update({

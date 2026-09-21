@@ -11,6 +11,7 @@ const ITENS_MOBILE = [
   { href: "/jobs", label: "Jobs", minimo: "VIEWER" as Role },
   { href: "/alertas", label: "Alertas", minimo: "VIEWER" as Role },
   { href: "/usuarios", label: "Usuários", minimo: "ADMIN" as Role },
+  { href: "/configuracoes", label: "Config.", minimo: "ADMIN" as Role },
 ];
 
 export function AppShell({
