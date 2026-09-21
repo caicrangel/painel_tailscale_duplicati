@@ -179,6 +179,52 @@ describe("correlação: máquina offline absorve o atraso dos jobs", () => {
   });
 });
 
+describe("o limiar de alerta independe da classificação de status", () => {
+  it("alerta em 15 min mesmo com a máquina ainda classificada como ociosa", () => {
+    // 20 min sem contato: com idleMax=60 ela é OCIOSA, não OFFLINE.
+    const ociosa = maquina({
+      status: "IDLE",
+      lastSeen: new Date(AGORA.getTime() - 20 * 60_000),
+    });
+    const c = derivarCondicoes({
+      maquinas: [ociosa],
+      jobs: [],
+      ...opcoes,
+      offlineAlertMinutes: 15,
+    });
+    expect(c.map((x) => x.type)).toEqual(["MACHINE_OFFLINE"]);
+    expect(c[0]!.message).toContain("20 min");
+  });
+
+  it("não alerta antes do limiar, mesmo já classificada como offline", () => {
+    const offlineRecente = maquina({
+      status: "OFFLINE",
+      lastSeen: new Date(AGORA.getTime() - 70 * 60_000),
+    });
+    const c = derivarCondicoes({
+      maquinas: [offlineRecente],
+      jobs: [],
+      ...opcoes,
+      offlineAlertMinutes: 120,
+    });
+    expect(c).toEqual([]);
+  });
+
+  it("máquina sem nenhum contato conhecido não alerta", () => {
+    const nunca = maquina({ status: "UNKNOWN", lastSeen: null });
+    expect(
+      derivarCondicoes({ maquinas: [nunca], jobs: [], ...opcoes, offlineAlertMinutes: 1 }),
+    ).toEqual([]);
+  });
+
+  it("máquina online recente nunca alerta", () => {
+    const viva = maquina({ status: "ONLINE", lastSeen: new Date(AGORA.getTime() - 60_000) });
+    expect(
+      derivarCondicoes({ maquinas: [viva], jobs: [], ...opcoes, offlineAlertMinutes: 15 }),
+    ).toEqual([]);
+  });
+});
+
 describe("máquina de suporte fica fora dos alertas", () => {
   const offlineHaDias = {
     status: "OFFLINE" as const,

@@ -31,7 +31,10 @@ export function LimiaresForm({ settings }: { settings: AppSettings }) {
               defaultValue={settings.machineIdleMaxMinutes}
             />
           </Field>
-          <Field label="Alertar offline após (min)">
+          <Field
+            label="Alertar offline após (min)"
+            hint="Independe dos dois campos ao lado: conta o tempo sem contato."
+          >
             <Input
               name="machineOfflineAlertMinutes"
               type="number"

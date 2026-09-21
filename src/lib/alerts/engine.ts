@@ -119,7 +119,14 @@ export function derivarCondicoes(params: {
   const maquinasAbsorvendo = new Set<string>();
 
   for (const maquina of maquinas) {
-    if (maquina.status !== "OFFLINE") continue;
+    // O gatilho é o tempo sem contato, NÃO a classificação de status.
+    //
+    // Antes isto exigia status === "OFFLINE", que só acontece depois do limite
+    // de "ociosa" (60 min por padrão). Na prática, baixar "alertar offline após"
+    // para 15 min não tinha efeito nenhum: a máquina ainda estava "ociosa" e o
+    // alerta esperava os 60. Os dois botões pareciam independentes e não eram.
+    // Agora "alertar offline após X minutos" significa exatamente isso.
+    if (maquina.status === "UNKNOWN") continue;
     if (emManutencao(maquina, now)) continue;
     // Máquina de apoio não é infraestrutura de cliente: um notebook fechado à
     // noite não é incidente de backup.

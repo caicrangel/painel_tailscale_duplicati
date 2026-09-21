@@ -65,8 +65,12 @@ export default async function TelegramPage() {
             </li>
             <li>
               <strong className="text-[var(--color-fg)]">Máquina offline</strong> — sem contato além
-              do limite. Os jobs atrasados dela entram nessa mesma mensagem, em vez de virarem uma
-              mensagem cada.
+              do limite, que fica em{" "}
+              <a href="/configuracoes/monitoramento" className="text-[var(--color-info)]">
+                Monitoramento → Alertar offline após
+              </a>
+              . Vale para máquinas de cliente; as de apoio ficam de fora. Os jobs atrasados da
+              máquina entram nessa mesma mensagem, em vez de virarem uma mensagem cada.
             </li>
             <li>
               <strong className="text-[var(--color-fg)]">Recuperação</strong> — uma mensagem quando
@@ -74,8 +78,10 @@ export default async function TelegramPage() {
             </li>
           </ul>
           <p className="mt-4 text-xs text-[var(--color-faint)]">
-            Um incidente gera uma mensagem, não uma por ciclo do worker. Alertas de warning são
-            opcionais e ficam na aba Monitoramento.
+            Um incidente gera uma mensagem, não uma por ciclo do worker — e uma de recuperação
+            quando se resolve. Não há como desligar um tipo de alerta separadamente: o switch do
+            Telegram liga ou desliga todos. Alertas de warning são opcionais e ficam na aba
+            Monitoramento.
           </p>
         </CardBody>
       </Card>

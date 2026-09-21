@@ -394,7 +394,8 @@ credenciais de infraestrutura, não configuração de operação.
 
 ## 5. Alertas
 
-Disparam por: job com erro/fatal, job atrasado e máquina offline além do limite.
+Disparam por: job com erro/fatal, job atrasado e máquina offline.
+
 
 - **Deduplicação:** um alerta por incidente, não um a cada ciclo do worker. A
   garantia é do banco (índice único parcial em `alerts(dedupeKey) WHERE closedAt IS NULL`),

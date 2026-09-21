@@ -31,8 +31,17 @@ export default async function MonitoramentoPage() {
           </p>
           <p>
             <strong className="text-[var(--color-fg)]">Alerta de offline</strong> — quanto tempo sem
-            contato antes de virar incidente. Manter acima do limite de ociosa evita alarme por
-            reinício de máquina.
+            contato antes de virar incidente, contado direto do último contato. Não depende dos
+            limites de online/ociosa: se você puser 15 aqui, o alerta sai aos 15 minutos.
+          </p>
+          <p className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-xs">
+            Abaixo de ~10 minutos o alerta começa a disparar por reinício, queda de link e máquina
+            que dorme — e cada ida e volta gera mensagem de problema e de recuperação. Para saber
+            rápido sem virar ruído, 15 a 20 minutos costuma ser o ponto certo.
+          </p>
+          <p>
+            Depois de cruzar o limite, a mensagem sai em até ~3 minutos: o worker lê o Tailscale a
+            cada 2 minutos, avalia alertas a cada 1 e despacha a fila a cada 1.
           </p>
           <p>
             <strong className="text-[var(--color-fg)]">Padrões de job</strong> — valem para jobs
