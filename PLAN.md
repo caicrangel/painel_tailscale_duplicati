@@ -116,11 +116,12 @@ atrasado       = now > deadline
 ### 2.5 Fluxo D — alertas (a cada 1 min, no worker)
 
 Tipos: `BACKUP_FAILED` (ParsedResult Error/Fatal), `BACKUP_WARNING` (opcional, default off),
-`BACKUP_LATE`, `MACHINE_OFFLINE`, `MOUNT_FAILED`, `MOUNT_LATE`.
+`BACKUP_LATE`, `MACHINE_OFFLINE`, `MOUNT_FAILED`, `MOUNT_REMOUNTED`, `MOUNT_LATE`.
 
 Deduplicação por `dedupeKey` estável, ex.:
 `backup_failed:job:<jobId>`, `backup_late:job:<jobId>`, `machine_offline:machine:<machineId>`,
-`mount_failed:machine:<machineId>`, `mount_late:machine:<machineId>`.
+`mount_failed:machine:<machineId>`, `mount_remounted:machine:<machineId>`,
+`mount_late:machine:<machineId>`.
 
 Índice único parcial (`WHERE closed_at IS NULL`) garante **um alerta aberto por
 dedupeKey** no nível do banco — não depende de lógica da aplicação estar certa.
@@ -153,6 +154,11 @@ O painel guarda o payload bruto antes de interpretar (regra 2), registra cada po
 seu veredito (`OK` / `REMOUNTED` / `FAILED`) e abre alerta em dois casos:
 
 - `MOUNT_FAILED` (CRITICAL) — algum ponto não subiu nem após as tentativas do script.
+- `MOUNT_REMOUNTED` (WARNING) — o ponto tinha caído e o script conseguiu remontar. O backup
+  ficou protegido, mas o share saiu do ar: é o sintoma precoce da falha que um dia o script
+  não vai conseguir consertar. A mensagem conta quantas remontagens a máquina acumulou nos
+  últimos 7 dias, porque a recorrência é o dado que aponta o culpado — share que cai toda
+  noite é problema do servidor de arquivos ou da rede, não da máquina do cliente.
 - `MOUNT_LATE` (WARNING) — a verificação parou de chegar dentro de
   `mountCheckIntervalMinutes + mountCheckToleranceMinutes`. Mesmo princípio do backup
   atrasado: o silêncio é o sintoma. Intervalo nulo desliga a vigilância da máquina.
