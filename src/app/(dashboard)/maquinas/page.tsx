@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, Td, Th, Tr, EmptyState } from "@/components/ui/table";
 import { MACHINE_STATUS } from "@/lib/utils/status";
 import { fmtRelativo } from "@/lib/utils/format";
+import { AutoRefresh } from "@/components/auto-refresh";
 
 export const metadata = { title: "Máquinas · Painel" };
 export const dynamic = "force-dynamic";
@@ -54,6 +55,7 @@ export default async function MaquinasPage({
 
   return (
     <div>
+      <AutoRefresh />
       <PageHeader
         title="Máquinas"
         subtitle={`${maquinas.length} máquina(s) no filtro atual`}

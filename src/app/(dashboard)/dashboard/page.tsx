@@ -29,6 +29,7 @@ import { MountOverview } from "@/components/mount-overview";
 import { Table, Td, Th, Tr, EmptyState } from "@/components/ui/table";
 import { ALERT_SEVERITY, ALERT_TYPE, JOB_STATUS } from "@/lib/utils/status";
 import { fmtDataHora, fmtRelativo } from "@/lib/utils/format";
+import { AutoRefresh } from "@/components/auto-refresh";
 
 export const metadata = { title: "Dashboard · Painel" };
 export const dynamic = "force-dynamic";
@@ -65,6 +66,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <AutoRefresh />
       <PageHeader
         title="Dashboard"
         subtitle={

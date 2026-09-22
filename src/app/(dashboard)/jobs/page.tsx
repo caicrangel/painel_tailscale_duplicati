@@ -11,6 +11,7 @@ import { Table, Td, Th, Tr, EmptyState } from "@/components/ui/table";
 import { HeatStrip, HeatStripLegenda } from "@/components/heat-strip";
 import { JOB_STATUS } from "@/lib/utils/status";
 import { fmtIntervalo, fmtRelativo } from "@/lib/utils/format";
+import { AutoRefresh } from "@/components/auto-refresh";
 
 export const metadata = { title: "Jobs de backup · Painel" };
 export const dynamic = "force-dynamic";
@@ -56,6 +57,7 @@ export default async function JobsPage({
 
   return (
     <div>
+      <AutoRefresh />
       <PageHeader title="Jobs de backup" subtitle={`${jobs.length} job(s) no filtro atual`} />
 
       <FilterBar

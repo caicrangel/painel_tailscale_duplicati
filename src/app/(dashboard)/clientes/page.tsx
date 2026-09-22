@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, Td, Th, Tr, EmptyState } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { StatusSummary } from "@/components/status-summary";
+import { AutoRefresh } from "@/components/auto-refresh";
 
 export const metadata = { title: "Clientes · Painel" };
 export const dynamic = "force-dynamic";
@@ -34,6 +35,7 @@ export default async function ClientesPage() {
 
   return (
     <div>
+      <AutoRefresh />
       <PageHeader
         title="Clientes"
         subtitle={`${clientes.length} cliente(s) atendido(s)`}

@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/table";
 import { ALERT_SEVERITY, ALERT_TYPE } from "@/lib/utils/status";
 import { fmtDataHora, fmtRelativo } from "@/lib/utils/format";
 import { AcknowledgeButton } from "./acknowledge-button";
+import { AutoRefresh } from "@/components/auto-refresh";
 
 export const metadata = { title: "Alertas · Painel" };
 export const dynamic = "force-dynamic";
@@ -40,6 +41,7 @@ export default async function AlertasPage({
 
   return (
     <div>
+      <AutoRefresh />
       <PageHeader
         title="Alertas"
         subtitle={
