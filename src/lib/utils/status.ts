@@ -39,6 +39,7 @@ export const ALERT_TYPE: Record<AlertType, { label: string; tone: Tone }> = {
   BACKUP_LATE: { label: "Backup atrasado", tone: "late" },
   MACHINE_OFFLINE: { label: "Máquina offline", tone: "danger" },
   MOUNT_FAILED: { label: "Montagem com falha", tone: "danger" },
+  MOUNT_REMOUNTED: { label: "Ponto remontado", tone: "warn" },
   MOUNT_LATE: { label: "Verificação de montagem parada", tone: "warn" },
 };
 

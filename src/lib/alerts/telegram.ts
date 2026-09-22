@@ -85,6 +85,7 @@ const TIPO: Record<string, string> = {
   BACKUP_LATE: "Backup atrasado",
   MACHINE_OFFLINE: "Máquina offline",
   MOUNT_FAILED: "Montagem com falha",
+  MOUNT_REMOUNTED: "Ponto remontado",
   MOUNT_LATE: "Verificação de montagem parada",
 };
 
