@@ -5,8 +5,13 @@ import { registrarCiclo } from "../lib/sync-log";
 
 /**
  * Manutenção (de hora em hora): limpa janelas de rate limit vencidas e,
- * se RAW_PAYLOAD_RETENTION_DAYS > 0, expurga o payload bruto antigo.
- * Na Fase 1 o expurgo vem desligado (retenção total).
+ * se a retenção configurada for > 0, expurga o payload bruto antigo — tanto o
+ * dos backups quanto o das verificações de montagem.
+ *
+ * O bruto existe para corrigir o parser quando ele erra. Passado o prazo ele
+ * não serve mais para isso e continua guardando a topologia do cliente (nomes
+ * de job, caminhos de share, volumes), então vira só exposição. As métricas já
+ * interpretadas ficam no histórico; só o JSON some.
  */
 export async function manutencao(now: Date = new Date()): Promise<number> {
   return registrarCiclo("MAINTENANCE", async () => {
@@ -21,6 +26,12 @@ export async function manutencao(now: Date = new Date()): Promise<number> {
         data: { rawPayload: {}, parseError: "payload bruto expurgado por política de retenção" },
       });
       itens += count;
+
+      const { count: montagens } = await prisma.mountCheck.updateMany({
+        where: { receivedAt: { lt: corte }, NOT: { rawPayload: { equals: {} } } },
+        data: { rawPayload: {}, parseError: "payload bruto expurgado por política de retenção" },
+      });
+      itens += montagens;
     }
 
     // SyncLogs antigos não servem para nada e crescem rápido (um por minuto).

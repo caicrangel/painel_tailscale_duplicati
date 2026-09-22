@@ -54,7 +54,7 @@ const schema = z.object({
   CRON_LATE_CHECK: z.string().default("*/5 * * * *"),
   CRON_ALERTS: z.string().default("* * * * *"),
   CRON_NOTIFY: z.string().default("* * * * *"),
-  RAW_PAYLOAD_RETENTION_DAYS: intish(0),
+  RAW_PAYLOAD_RETENTION_DAYS: intish(90),
 });
 
 export type Env = z.infer<typeof schema>;
