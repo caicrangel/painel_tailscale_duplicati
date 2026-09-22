@@ -345,34 +345,27 @@ export function planejarAlertas(
   return { abrir, manter, fechar };
 }
 
-/** Texto da mensagem de recuperação enviada ao fechar um incidente. */
-export function mensagemDeRecuperacao(alerta: AlertaAberto, titulo: string): string {
-  switch (alerta.type) {
+/**
+ * Explicação do que se resolveu, para o corpo da mensagem de recuperação.
+ *
+ * Só a frase: o título e a identificação do incidente vêm do formatador, que
+ * os monta na mesma régua do alerta que abriu.
+ */
+export function explicacaoDeRecuperacao(type: AlertaAberto["type"]): string {
+  switch (type) {
     case "MACHINE_OFFLINE":
-      return `✅ Resolvido: ${titulo}. A máquina voltou a se comunicar.`;
+      return "A máquina voltou a se comunicar.";
     case "BACKUP_LATE":
-      return `✅ Resolvido: ${titulo}. O job voltou a reportar execução.`;
+      return "O job voltou a reportar execução.";
     case "BACKUP_FAILED":
-      return `✅ Resolvido: ${titulo}. A última execução terminou sem erro.`;
+      return "A última execução terminou sem erro.";
     case "BACKUP_WARNING":
-      return `✅ Resolvido: ${titulo}. A última execução terminou limpa.`;
+      return "A última execução terminou limpa.";
     case "MOUNT_FAILED":
-      return `✅ Resolvido: ${titulo}. Os pontos de montagem voltaram a responder.`;
+      return "Os pontos de montagem voltaram a responder.";
     case "MOUNT_LATE":
-      return `✅ Resolvido: ${titulo}. A verificação de montagens voltou a chegar.`;
+      return "A verificação de montagens voltou a chegar.";
     default:
-      return `✅ Resolvido: ${titulo}.`;
+      return "A condição que abriu o incidente deixou de valer.";
   }
-}
-
-/** Versão em texto puro do alerta, para canais que não interpretam HTML (e-mail). */
-export function formatarAlertaSimples(params: {
-  severity: AlertSeverity;
-  title: string;
-  message: string;
-  clientName?: string | null;
-}): string {
-  const linhas = [params.title, "", params.message];
-  if (params.clientName) linhas.push("", `Cliente: ${params.clientName}`);
-  return linhas.join("\n");
 }

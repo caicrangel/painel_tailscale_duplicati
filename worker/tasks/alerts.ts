@@ -3,7 +3,6 @@ import { prisma } from "@/lib/db/prisma";
 import { getSettings } from "@/lib/config/settings";
 import {
   derivarCondicoes,
-  mensagemDeRecuperacao,
   planejarAlertas,
   type JobSnapshot,
   type MaquinaSnapshot,
@@ -182,7 +181,6 @@ export async function avaliarAlertas(now: Date = new Date()): Promise<number> {
           data: canais.map((channel) => ({ alertId: alerta.id, kind: "RECOVERY" as const, channel })),
         });
       }
-      void mensagemDeRecuperacao(alerta, registro?.title ?? "incidente");
       acoes += 1;
     }
 

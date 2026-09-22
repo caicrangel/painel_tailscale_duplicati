@@ -13,9 +13,10 @@ import {
   salvarSmtpConfig,
   salvarTelegramConfig,
 } from "@/lib/config/integracoes";
+import { env } from "@/lib/config/env";
 import { invalidateSettingsCache, setSetting, type AppSettings } from "@/lib/config/settings";
-import { enviarTelegram } from "@/lib/alerts/telegram";
-import { enviarEmail, montarHtml } from "@/lib/alerts/email";
+import { enviarTelegram, formatarTeste } from "@/lib/alerts/telegram";
+import { enviarEmail, escaparHtmlEmail, montarHtml } from "@/lib/alerts/email";
 import { enviarResumoAgora } from "@/lib/alerts/resumo-envio";
 
 const bool = (fd: FormData, nome: string) => fd.get(nome) === "on" || fd.get(nome) === "true";
@@ -70,7 +71,7 @@ export async function testarTelegram(): Promise<ActionResult> {
   if (!guard.ok) return guard;
 
   const r = await enviarTelegram({
-    texto: "🔔 <b>Teste do painel</b>\n\nSe você está lendo isto, o Telegram está configurado corretamente.",
+    texto: formatarTeste(new Date(), env().TZ).html,
     forcar: true,
   });
 
@@ -144,12 +145,11 @@ export async function testarSmtp(): Promise<ActionResult> {
   const guard = await guardAction("ADMIN");
   if (!guard.ok) return guard;
 
-  const corpo =
-    "Se você está lendo isto, o envio por e-mail do painel está configurado corretamente.";
+  const teste = formatarTeste(new Date(), env().TZ);
   const r = await enviarEmail({
-    assunto: "Teste do painel de monitoramento",
-    texto: corpo,
-    html: montarHtml("Teste do painel", corpo),
+    assunto: teste.titulo,
+    texto: teste.texto,
+    html: montarHtml(teste.titulo, escaparHtmlEmail(teste.texto), true),
     forcar: true,
   });
 

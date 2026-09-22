@@ -41,7 +41,7 @@ export async function enviarResumoPeriodico(agora: Date = new Date()): Promise<n
       const r = await enviarEmail({
         assunto: resumo.titulo,
         texto: resumo.texto,
-        html: montarHtml(resumo.titulo, escaparHtmlEmail(resumo.texto)),
+        html: montarHtml(resumo.titulo, escaparHtmlEmail(resumo.texto), true),
       });
       if (r.ok) enviados += 1;
       else console.error("[resumo] falha no e-mail:", r.erro);

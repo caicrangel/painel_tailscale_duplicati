@@ -133,7 +133,7 @@ export async function enviarResumoAgora(agora: Date = new Date()): Promise<{ ok:
     const r = await enviarEmail({
       assunto: resumo.titulo,
       texto: resumo.texto,
-      html: montarHtml(resumo.titulo, escaparHtmlEmail(resumo.texto)),
+      html: montarHtml(resumo.titulo, escaparHtmlEmail(resumo.texto), true),
       forcar: true,
     });
     if (!r.ok) erros.push(`E-mail: ${r.erro}`);

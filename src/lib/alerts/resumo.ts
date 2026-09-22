@@ -6,6 +6,18 @@
  * sem rede, sem Date.now() implícito (regra 5 do CLAUDE.md).
  */
 
+import {
+  bytesLegiveis,
+  cabecalhoTabela,
+  campo,
+  item,
+  linhaTabela,
+  linhaValor,
+  montarMensagem,
+  numero,
+  type MensagemFormatada,
+} from "@/lib/alerts/formato";
+
 export type DadosResumo = {
   periodoHoras: number;
   clientes: number;
@@ -20,24 +32,7 @@ export type DadosResumo = {
   incluirSucessos: boolean;
 };
 
-export type ResumoFormatado = { titulo: string; texto: string; html: string };
-
-function bytesLegiveis(bytes: number | null): string {
-  if (bytes === null || !Number.isFinite(bytes) || bytes < 0) return "—";
-  const unidades = ["B", "KB", "MB", "GB", "TB", "PB"];
-  let n = bytes;
-  let i = 0;
-  while (n >= 1024 && i < unidades.length - 1) {
-    n /= 1024;
-    i += 1;
-  }
-  const casas = i === 0 ? 0 : n < 10 ? 2 : 1;
-  return `${n.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas })} ${unidades[i]}`;
-}
-
-function escapar(t: string): string {
-  return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
+export type ResumoFormatado = MensagemFormatada;
 
 /** Emoji de cabeçalho conforme a gravidade do que está aberto. */
 function sinal(dados: DadosResumo): string {
@@ -47,65 +42,63 @@ function sinal(dados: DadosResumo): string {
 }
 
 export function montarResumo(dados: DadosResumo, dataReferencia: string): ResumoFormatado {
-  const titulo = `Resumo de backups — ${dataReferencia}`;
+  const titulo = `${sinal(dados)} Resumo de backups — ${dataReferencia}`;
 
-  const linhas: string[] = [];
-  linhas.push(`${sinal(dados)} ${titulo}`);
-  linhas.push("");
-  linhas.push(`Últimas ${dados.periodoHoras}h · ${dados.clientes} cliente(s)`);
-  linhas.push("");
+  const bloco: string[] = [];
+  bloco.push(campo("📅 Período", `últimas ${dados.periodoHoras}h`));
+  bloco.push(campo("🏢 Clientes", `${dados.clientes}`));
 
-  linhas.push("MÁQUINAS");
-  linhas.push(
-    `  online ${dados.maquinas.online} · ociosas ${dados.maquinas.idle} · offline ${dados.maquinas.offline}`,
-  );
-  linhas.push("");
+  bloco.push("");
+  bloco.push(cabecalhoTabela("🖥️ MÁQUINAS", false));
+  bloco.push(linhaTabela("Online", numero(dados.maquinas.online)));
+  bloco.push(linhaTabela("Ociosas", numero(dados.maquinas.idle)));
+  bloco.push(linhaTabela("Offline", numero(dados.maquinas.offline)));
 
-  linhas.push("JOBS");
-  linhas.push(
-    `  OK ${dados.jobs.ok} · warning ${dados.jobs.warning} · erro ${dados.jobs.erro} · atrasados ${dados.jobs.atrasados}`,
-  );
-  if (dados.jobs.pausados > 0) linhas.push(`  (${dados.jobs.pausados} pausado(s), fora do monitoramento)`);
-  linhas.push("");
+  bloco.push("");
+  bloco.push(cabecalhoTabela("📋 JOBS", false));
+  bloco.push(linhaTabela("OK", numero(dados.jobs.ok)));
+  bloco.push(linhaTabela("Warning", numero(dados.jobs.warning)));
+  bloco.push(linhaTabela("Erro", numero(dados.jobs.erro)));
+  bloco.push(linhaTabela("Atrasados", numero(dados.jobs.atrasados)));
+  if (dados.jobs.pausados > 0) bloco.push(linhaTabela("Pausados", numero(dados.jobs.pausados)));
 
-  linhas.push(`EXECUÇÕES NAS ÚLTIMAS ${dados.periodoHoras}H`);
-  linhas.push(
-    `  sucesso ${dados.execucoes.sucesso} · warning ${dados.execucoes.warning} · erro ${dados.execucoes.erro}`,
-  );
-  if (dados.bytesEnviados !== null) {
-    linhas.push(`  enviado ao destino: ${bytesLegiveis(dados.bytesEnviados)}`);
+  bloco.push("");
+  bloco.push(cabecalhoTabela(`▶️ EXECUÇÕES ${dados.periodoHoras}H`, false));
+  bloco.push(linhaTabela("Sucesso", numero(dados.execucoes.sucesso)));
+  bloco.push(linhaTabela("Warning", numero(dados.execucoes.warning)));
+  bloco.push(linhaTabela("Erro", numero(dados.execucoes.erro)));
+
+  const enviado = bytesLegiveis(dados.bytesEnviados);
+  if (enviado) {
+    bloco.push("");
+    bloco.push("☁️ DESTINO");
+    bloco.push(linhaValor("Enviado ao destino", enviado));
   }
 
+  // As listas ficam fora do bloco monoespaçado: nome de job e de máquina são
+  // longos e dentro do <pre> virariam rolagem horizontal no celular.
+  const rodape: string[] = [];
+
   if (dados.problemas.length > 0) {
-    linhas.push("");
-    linhas.push(`PRECISAM DE ATENÇÃO (${dados.problemas.length})`);
+    rodape.push("");
+    rodape.push(`⚠️ PRECISAM DE ATENÇÃO (${dados.problemas.length})`);
     for (const p of dados.problemas) {
-      linhas.push(`  • ${p.titulo}${p.cliente ? ` — ${p.cliente}` : ""} (desde ${p.desde})`);
+      rodape.push(item(`${p.titulo}${p.cliente ? ` — ${p.cliente}` : ""} (desde ${p.desde})`));
     }
   } else {
-    linhas.push("");
-    linhas.push("✅ Nenhum problema aberto.");
+    rodape.push("");
+    rodape.push("✅ Nenhum problema aberto.");
   }
 
   if (dados.incluirSucessos && dados.sucessos.length > 0) {
-    linhas.push("");
-    linhas.push(`RODARAM SEM PROBLEMA (${dados.sucessos.length})`);
+    rodape.push("");
+    rodape.push(`✅ RODARAM SEM PROBLEMA (${dados.sucessos.length})`);
     for (const s of dados.sucessos) {
-      linhas.push(`  • ${s.job} — ${s.maquina}${s.cliente ? ` · ${s.cliente}` : ""}`);
+      rodape.push(item(`${s.job} — ${s.maquina}${s.cliente ? ` · ${s.cliente}` : ""}`));
     }
   }
 
-  const texto = linhas.join("\n");
-
-  // Versão HTML para o Telegram: negrito nos cabeçalhos, resto escapado.
-  const html = linhas
-    .map((linha) => {
-      const cabecalho = /^[A-ZÇÃÕÉÚ][A-ZÇÃÕÉÚ0-9 ()À-Ú]+$/.test(linha.trim()) && !linha.startsWith("  ");
-      return cabecalho ? `<b>${escapar(linha)}</b>` : escapar(linha);
-    })
-    .join("\n");
-
-  return { titulo, texto, html };
+  return montarMensagem({ titulo, bloco, rodape });
 }
 
 /**

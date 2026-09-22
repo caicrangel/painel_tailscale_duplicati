@@ -1,8 +1,12 @@
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/config/env";
-import { enviarTelegram, formatarMensagemAlerta } from "@/lib/alerts/telegram";
+import {
+  enviarTelegram,
+  formatarMensagemAlerta,
+  formatarRecuperacao,
+} from "@/lib/alerts/telegram";
 import { enviarEmail, escaparHtmlEmail, montarHtml } from "@/lib/alerts/email";
-import { formatarAlertaSimples, mensagemDeRecuperacao } from "@/lib/alerts/engine";
+import { explicacaoDeRecuperacao } from "@/lib/alerts/engine";
 import { formatarRecibo } from "@/lib/alerts/execucao";
 import { registrarCiclo } from "../lib/sync-log";
 
@@ -29,6 +33,8 @@ export async function despacharNotificacoes(now: Date = new Date()): Promise<num
         alert: {
           include: {
             client: { select: { name: true, telegramChatId: true } },
+            machine: { select: { hostname: true, displayName: true } },
+            backupJob: { select: { name: true } },
           },
         },
       },
@@ -40,39 +46,40 @@ export async function despacharNotificacoes(now: Date = new Date()): Promise<num
     for (const notificacao of pendentes) {
       const alerta = notificacao.alert;
 
-      const recuperacao = () =>
-        mensagemDeRecuperacao(
-          {
-            id: alerta.id,
-            dedupeKey: alerta.dedupeKey,
-            type: alerta.type,
-            relatedJobIds: alerta.relatedJobIds,
-          },
-          alerta.title,
-        );
+      const identificacao = {
+        type: alerta.type,
+        clientName: alerta.client?.name ?? null,
+        machineName: alerta.machine
+          ? (alerta.machine.displayName ?? alerta.machine.hostname)
+          : null,
+        jobName: alerta.backupJob?.name ?? null,
+        abertoEm: alerta.openedAt,
+      };
 
-      // O Telegram recebe HTML; o e-mail recebe texto puro e é envelopado no
-      // seu próprio HTML. Mandar o markup de um no outro vaza tag na mensagem.
-      const textoSimples =
+      // Um formatador só para os dois canais: o Telegram recebe o HTML, o
+      // e-mail recebe o texto e o envelopa no seu próprio HTML monoespaçado.
+      // Mandar o markup de um no outro vaza tag na mensagem.
+      const mensagem =
         notificacao.kind === "OPEN"
-          ? formatarAlertaSimples({
-              severity: alerta.severity,
-              title: alerta.title,
-              message: alerta.message,
-              clientName: alerta.client?.name ?? null,
-            })
-          : recuperacao();
-
-      const texto =
-        notificacao.kind === "OPEN"
-          ? formatarMensagemAlerta({
-              severity: alerta.severity,
-              title: alerta.title,
-              message: alerta.message,
-              clientName: alerta.client?.name ?? null,
-              url: `${baseUrl}/alertas`,
-            })
-          : recuperacao();
+          ? formatarMensagemAlerta(
+              {
+                ...identificacao,
+                severity: alerta.severity,
+                title: alerta.title,
+                message: alerta.message,
+                url: `${baseUrl}/alertas`,
+              },
+              env().TZ,
+            )
+          : formatarRecuperacao(
+              {
+                ...identificacao,
+                title: alerta.title,
+                explicacao: explicacaoDeRecuperacao(alerta.type),
+                fechadoEm: alerta.closedAt ?? now,
+              },
+              env().TZ,
+            );
 
       const resultado =
         notificacao.channel === "email"
@@ -81,11 +88,11 @@ export async function despacharNotificacoes(now: Date = new Date()): Promise<num
                 notificacao.kind === "OPEN"
                   ? `[${alerta.severity}] ${alerta.title}`
                   : `[resolvido] ${alerta.title}`,
-              texto: textoSimples,
-              html: montarHtml(alerta.title, escaparHtmlEmail(textoSimples)),
+              texto: mensagem.texto,
+              html: montarHtml(mensagem.titulo, escaparHtmlEmail(mensagem.texto), true),
             })
           : await enviarTelegram({
-              texto,
+              texto: mensagem.html,
               // Chat por cliente quando houver; senão cai no chat global.
               chatId: alerta.client?.telegramChatId ?? null,
             });
