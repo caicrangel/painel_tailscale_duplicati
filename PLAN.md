@@ -116,10 +116,11 @@ atrasado       = now > deadline
 ### 2.5 Fluxo D — alertas (a cada 1 min, no worker)
 
 Tipos: `BACKUP_FAILED` (ParsedResult Error/Fatal), `BACKUP_WARNING` (opcional, default off),
-`BACKUP_LATE`, `MACHINE_OFFLINE`.
+`BACKUP_LATE`, `MACHINE_OFFLINE`, `MOUNT_FAILED`, `MOUNT_LATE`.
 
 Deduplicação por `dedupeKey` estável, ex.:
-`backup_failed:job:<jobId>`, `backup_late:job:<jobId>`, `machine_offline:machine:<machineId>`.
+`backup_failed:job:<jobId>`, `backup_late:job:<jobId>`, `machine_offline:machine:<machineId>`,
+`mount_failed:machine:<machineId>`, `mount_late:machine:<machineId>`.
 
 Índice único parcial (`WHERE closed_at IS NULL`) garante **um alerta aberto por
 dedupeKey** no nível do banco — não depende de lógica da aplicação estar certa.
@@ -136,6 +137,32 @@ mensagem de resolução no Telegram, referenciando o incidente.
 Envio: fila simples em `AlertNotification` (pending → sent/failed) com retry. Se o Telegram
 estiver fora, o alerta continua registrado na UI — a UI é a fonte da verdade, o Telegram é
 notificação best-effort.
+
+### 2.6 Fluxo E — verificação de pontos de montagem (push)
+
+O backup do Duplicati sobe o share do cliente por CIFS/NFS. Com o ponto fora do ar ele
+termina "com sucesso" sem copiar nada — o pior tipo de falha, porque parece verde.
+
+A checagem e a remontagem continuam na máquina do cliente (`agentes/check-mounts.sh`):
+precisam de root e das syscalls de mount, não têm como sair de lá. O que muda é o destino
+do relatório — em vez de mandar direto ao Telegram, o script faz `POST` em
+`/api/ingest/mounts/[token]`, reusando o token de ingestão do cliente. Uma credencial a
+menos espalhada por máquina, e o histórico passa a existir.
+
+O painel guarda o payload bruto antes de interpretar (regra 2), registra cada ponto com
+seu veredito (`OK` / `REMOUNTED` / `FAILED`) e abre alerta em dois casos:
+
+- `MOUNT_FAILED` (CRITICAL) — algum ponto não subiu nem após as tentativas do script.
+- `MOUNT_LATE` (WARNING) — a verificação parou de chegar dentro de
+  `mountCheckIntervalMinutes + mountCheckToleranceMinutes`. Mesmo princípio do backup
+  atrasado: o silêncio é o sintoma. Intervalo nulo desliga a vigilância da máquina.
+
+Máquina offline absorve o `MOUNT_LATE`, como já faz com os jobs atrasados — o alerta de
+offline já explica a ausência do relatório.
+
+O dashboard mostra o panorama de todos os clientes com os pontos abertos por máquina,
+ordenado por urgência (falha, depois verificação parada): é o que permite decidir num
+relance qual share de qual cliente está fora.
 
 ---
 
@@ -192,6 +219,12 @@ Função pura que recebe o estado atual + alertas abertos e devolve as ações
 (`open`, `keep`, `close`). Testes: não abre duas vezes, não reabre no ciclo seguinte,
 fecha e manda recuperação uma única vez, correlaciona atraso sob máquina offline,
 descorrelaciona quando a máquina volta.
+
+### 3.5 Atraso da verificação de montagens
+
+`avaliarAtrasoMontagem` (`lib/mounts/late.ts`): recebe última verificação, intervalo,
+tolerância e agora; devolve se está atrasada e há quantos minutos. Função pura, usada
+pelo engine de alertas e pelo dashboard — duas cópias da mesma regra divergem com o tempo.
 
 ---
 
@@ -309,6 +342,7 @@ instruções de "como testar" no meu retorno pra você.
 | 7 | Alertas + Telegram: dedupe, correlação, recuperação, fila de envio | **unit pesado**: dedupe/correlação | mensagem chega no chat; segundo ciclo não repete |
 | 8 | UI: dashboard, tabelas filtráveis, detalhes, histórico com payload bruto, CRUD de usuários | — | as 6 telas da Fase 1 |
 | 9 | README completo + guia do Duplicati + hardening final | — | seguir o README do zero |
+| 10 | Verificação de pontos de montagem: endpoint de ingestão, alertas `MOUNT_*`, card na máquina, panorama no dashboard, `agentes/check-mounts.sh` | **unit**: parsing do payload, cálculo de atraso | instalar o script numa máquina e ver os pontos no dashboard |
 
 Ordem é a que você pediu. Só de 0 a 2 já dá pra logar; a partir do 4 o sistema já tem valor real.
 
