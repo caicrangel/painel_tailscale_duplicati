@@ -322,6 +322,20 @@ RateLimitHit  id, bucket, identifier, windowStart, count  @@unique([bucket, iden
   rotação e revogação de token.
 - VIEWER não recebe o token de ingestão nem no HTML nem na API — filtrado no servidor,
   não escondido no CSS.
+- Server Actions só aceitam origem conhecida (`APP_BASE_URL` + `SERVER_ACTIONS_ORIGINS`).
+  O cookie `sameSite=lax` já barra o CSRF; a lista é a segunda camada, e o curinga que
+  existia antes a anulava de graça.
+- Cabeçalhos de resposta: `X-Frame-Options: DENY` e `frame-ancestors 'none'` (clickjacking),
+  `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` (o endereço da tailnet não
+  vaza em link externo), `Permissions-Policy` negando câmera/microfone/geolocalização.
+- Minimização: o payload bruto — de backup e de montagem — é expurgado depois de
+  `RAW_PAYLOAD_RETENTION_DAYS` (default 90). Ele serve para corrigir o parser; passado o
+  prazo é só a topologia do cliente parada no banco. As métricas interpretadas ficam.
+
+**Sai da tailnet, por decisão:** a API do Tailscale (OAuth de leitura) e o Telegram, que
+recebe nome do cliente, hostname, nome do job e volumes. Sem caminhos de arquivo e sem
+conteúdo. O ganho de receber alerta no celular foi julgado maior que o metadado exposto;
+quem não quiser isso desliga o Telegram e usa o SMTP interno.
 
 ---
 
