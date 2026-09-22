@@ -7,6 +7,8 @@ import {
   XCircle,
   Clock,
   Activity,
+  HardDrive,
+  RotateCw,
 } from "lucide-react";
 import { requireUser } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
@@ -14,6 +16,7 @@ import {
   carregarFaixas,
   carregarProblemas,
   carregarResumo,
+  carregarPanoramaMontagens,
   carregarSaudeDoWorker,
   cicloAtrasado,
 } from "@/lib/dashboard/queries";
@@ -22,6 +25,7 @@ import { Card, CardHeader, CardTitle, CardBody } from "@/components/ui/card";
 import { StatTile, HeroNumber } from "@/components/ui/stat-tile";
 import { Badge } from "@/components/ui/badge";
 import { HeatStrip, HeatStripLegenda } from "@/components/heat-strip";
+import { MountOverview } from "@/components/mount-overview";
 import { Table, Td, Th, Tr, EmptyState } from "@/components/ui/table";
 import { ALERT_SEVERITY, ALERT_TYPE, JOB_STATUS } from "@/lib/utils/status";
 import { fmtDataHora, fmtRelativo } from "@/lib/utils/format";
@@ -32,10 +36,11 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   await requireUser();
 
-  const [resumo, problemas, saude] = await Promise.all([
+  const [resumo, problemas, saude, montagens] = await Promise.all([
     carregarResumo(),
     carregarProblemas(12),
     carregarSaudeDoWorker(),
+    carregarPanoramaMontagens(),
   ]);
 
   const jobsCriticos = await prisma.backupJob.findMany({
@@ -196,6 +201,52 @@ export default async function DashboardPage() {
           />
         </div>
       </section>
+
+      {(montagens.maquinas.length > 0 || montagens.semReporte > 0) && (
+        <section>
+          <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--color-muted)]">
+            Pontos de montagem
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <StatTile
+              label="Tudo montado"
+              value={montagens.resumo.ok}
+              tone="ok"
+              icon={<CheckCircle2 className="size-3.5" />}
+            />
+            <StatTile
+              label="Recuperados"
+              value={montagens.resumo.recuperadas}
+              tone="warn"
+              icon={<RotateCw className="size-3.5" />}
+              hint="caíram e o script remontou"
+            />
+            <StatTile
+              label="Com falha"
+              value={montagens.resumo.comFalha}
+              tone="danger"
+              icon={<HardDrive className="size-3.5" />}
+              hint="o backup não deve rodar assim"
+              destaque
+            />
+            <StatTile
+              label="Verificação parada"
+              value={montagens.resumo.paradas}
+              tone="late"
+              icon={<Clock className="size-3.5" />}
+              hint="o script deixou de reportar"
+              destaque
+            />
+          </div>
+
+          <Card className="mt-3">
+            <CardHeader>
+              <CardTitle>Montagens por máquina</CardTitle>
+            </CardHeader>
+            <MountOverview maquinas={montagens.maquinas} semReporte={montagens.semReporte} />
+          </Card>
+        </section>
+      )}
 
       <div className="grid items-start gap-6 xl:grid-cols-2">
         <Card>

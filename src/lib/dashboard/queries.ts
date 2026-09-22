@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import type { DiaDaFaixa } from "@/components/heat-strip";
+import { avaliarAtrasoMontagem } from "@/lib/mounts/late";
 
 /**
  * Consultas do dashboard. Todas respondem em uma query — é para isso que os
@@ -194,4 +195,126 @@ export async function carregarSaudeDoWorker() {
     select: { kind: true, startedAt: true, finishedAt: true, ok: true, error: true },
   });
   return ciclos;
+}
+
+export type PontoDoPanorama = {
+  id: string;
+  path: string;
+  status: "OK" | "REMOUNTED" | "FAILED" | "UNKNOWN";
+  detail: string | null;
+  usePercent: string | null;
+  available: string | null;
+};
+
+export type MontagemDaMaquina = {
+  machineId: string;
+  nome: string;
+  cliente: string | null;
+  resultado: "OK" | "RECOVERED" | "FAILED" | "UNKNOWN";
+  /** A verificação parou de chegar dentro do intervalo configurado. */
+  parada: boolean;
+  vigiada: boolean;
+  recebidaEm: Date;
+  pontos: PontoDoPanorama[];
+};
+
+export type PanoramaMontagens = {
+  maquinas: MontagemDaMaquina[];
+  resumo: { ok: number; recuperadas: number; comFalha: number; paradas: number; pontos: number };
+  /** Máquinas de cliente que nunca reportaram — o script não foi instalado. */
+  semReporte: number;
+};
+
+/**
+ * Panorama de montagens para o dashboard.
+ *
+ * Mostra a última verificação de cada máquina com os pontos abertos: é o que
+ * permite ver, num relance, qual share de qual cliente está fora. A ordenação
+ * coloca o que exige ação na frente — falha, depois verificação parada.
+ */
+export async function carregarPanoramaMontagens(
+  agora: Date = new Date(),
+): Promise<PanoramaMontagens> {
+  const [maquinas, semReporte] = await Promise.all([
+    prisma.machine.findMany({
+      where: { role: "CLIENTE", clientId: { not: null }, lastMountCheckAt: { not: null } },
+      select: {
+        id: true,
+        hostname: true,
+        displayName: true,
+        mountCheckIntervalMinutes: true,
+        mountCheckToleranceMinutes: true,
+        client: { select: { name: true } },
+        mountChecks: {
+          orderBy: { receivedAt: "desc" },
+          take: 1,
+          select: {
+            result: true,
+            receivedAt: true,
+            points: {
+              select: {
+                id: true,
+                path: true,
+                status: true,
+                detail: true,
+                usePercent: true,
+                available: true,
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.machine.count({
+      where: { role: "CLIENTE", clientId: { not: null }, lastMountCheckAt: null },
+    }),
+  ]);
+
+  const linhas: MontagemDaMaquina[] = [];
+
+  for (const maquina of maquinas) {
+    const ultima = maquina.mountChecks[0];
+    if (!ultima) continue;
+
+    const { atrasada } = avaliarAtrasoMontagem({
+      ultimaEm: ultima.receivedAt,
+      intervaloMinutos: maquina.mountCheckIntervalMinutes,
+      toleranciaMinutos: maquina.mountCheckToleranceMinutes,
+      now: agora,
+    });
+
+    linhas.push({
+      machineId: maquina.id,
+      nome: maquina.displayName ?? maquina.hostname,
+      cliente: maquina.client?.name ?? null,
+      resultado: ultima.result,
+      parada: atrasada,
+      vigiada: maquina.mountCheckIntervalMinutes !== null,
+      recebidaEm: ultima.receivedAt,
+      pontos: ultima.points,
+    });
+  }
+
+  linhas.sort((a, b) => peso(a) - peso(b) || a.nome.localeCompare(b.nome, "pt-BR"));
+
+  return {
+    maquinas: linhas,
+    resumo: {
+      ok: linhas.filter((l) => l.resultado === "OK" && !l.parada).length,
+      recuperadas: linhas.filter((l) => l.resultado === "RECOVERED" && !l.parada).length,
+      comFalha: linhas.filter((l) => l.resultado === "FAILED").length,
+      paradas: linhas.filter((l) => l.parada && l.resultado !== "FAILED").length,
+      pontos: linhas.reduce((acc, l) => acc + l.pontos.length, 0),
+    },
+    semReporte,
+  };
+}
+
+/** Falha primeiro, depois verificação parada: é a ordem em que se age. */
+function peso(linha: MontagemDaMaquina): number {
+  if (linha.resultado === "FAILED") return 0;
+  if (linha.parada) return 1;
+  if (linha.resultado === "RECOVERED") return 2;
+  if (linha.resultado === "UNKNOWN") return 3;
+  return 4;
 }
