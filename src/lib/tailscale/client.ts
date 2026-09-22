@@ -12,6 +12,9 @@ import { env } from "@/lib/config/env";
 const TOKEN_URL = "https://api.tailscale.com/api/v2/oauth/token";
 const API_BASE = "https://api.tailscale.com/api/v2";
 const TIMEOUT_MS = 15_000;
+/** Falha de rede é transitória com frequência: tenta de novo antes de cegar o ciclo. */
+const TENTATIVAS = 3;
+const BACKOFF_MS = [1_000, 3_000];
 /** Renova com folga para não usar um token que expira no meio da chamada. */
 const MARGEM_RENOVACAO_MS = 5 * 60_000;
 
@@ -64,14 +67,70 @@ export function limparTokenCache() {
   cache = null;
 }
 
-async function fetchComTimeout(url: string, init: RequestInit): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    return await fetch(url, { ...init, signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
+/**
+ * `fetch failed` do Node não diz nada: o motivo real (DNS, TLS, recusa de
+ * conexão) mora em `cause`, possivelmente aninhado. Sem desempacotar isso, o
+ * log do worker e o aviso do painel mandam o operador olhar no escuro.
+ */
+export function descreverCausa(erro: unknown): string {
+  const partes: string[] = [];
+  let atual: unknown = erro;
+
+  for (let i = 0; i < 5 && atual instanceof Error; i += 1) {
+    const campos = atual as Error & {
+      code?: string;
+      syscall?: string;
+      hostname?: string;
+      errors?: unknown[];
+    };
+    const detalhe = [campos.code, campos.syscall, campos.hostname]
+      .filter((v): v is string => typeof v === "string" && v.length > 0)
+      .join(" ");
+    const texto = detalhe ? `${atual.message} (${detalhe})` : atual.message;
+    if (texto && !partes.includes(texto)) partes.push(texto);
+
+    if (Array.isArray(campos.errors) && campos.errors.length > 0) {
+      atual = campos.errors[0];
+      continue;
+    }
+    atual = atual.cause;
   }
+
+  if (partes.length === 0) return String(erro);
+  return partes.join(" ← ");
+}
+
+function ehAbort(erro: unknown): boolean {
+  return erro instanceof Error && erro.name === "AbortError";
+}
+
+async function fetchComTimeout(url: string, init: RequestInit): Promise<Response> {
+  let ultimo: unknown;
+
+  for (let tentativa = 0; tentativa < TENTATIVAS; tentativa += 1) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+      return await fetch(url, { ...init, signal: controller.signal });
+    } catch (erro) {
+      ultimo = erro;
+      const espera = BACKOFF_MS[tentativa];
+      if (espera === undefined) break;
+      await new Promise((r) => setTimeout(r, espera));
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  const alvo = new URL(url).host;
+  if (ehAbort(ultimo)) {
+    throw new TailscaleError(
+      `Sem resposta de ${alvo} em ${TIMEOUT_MS / 1000}s (${TENTATIVAS} tentativas).`,
+    );
+  }
+  throw new TailscaleError(
+    `Não foi possível falar com ${alvo} em ${TENTATIVAS} tentativas: ${descreverCausa(ultimo)}`,
+  );
 }
 
 export async function obterAccessToken(agora: Date = new Date()): Promise<string> {
