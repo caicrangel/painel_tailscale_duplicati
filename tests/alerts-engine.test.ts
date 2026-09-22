@@ -3,7 +3,9 @@ import {
   chaveJobAtrasado,
   chaveJobFalhou,
   chaveMaquinaOffline,
+  chaveMontagemRemontada,
   derivarCondicoes,
+  explicacaoDeRecuperacao,
   planejarAlertas,
   type AlertaAberto,
   type Condicao,
@@ -351,6 +353,8 @@ describe("verificação de montagens", () => {
         ultimaEm: new Date(AGORA.getTime() - 10 * 60_000),
         resultado: "OK",
         pontosComFalha: 0,
+        pontosRemontados: [],
+        remontagensRecentes: 0,
         intervaloMinutos: 1440,
         toleranciaMinutos: 60,
         ...over,
@@ -374,13 +378,95 @@ describe("verificação de montagens", () => {
     expect(c[0]!.message).toContain("sem copiar nada");
   });
 
-  it("remontagem bem-sucedida não vira incidente", () => {
+  it("remontagem abre alerta de atenção com o caminho que caiu", () => {
     const c = derivarCondicoes({
-      maquinas: [comMontagem({ resultado: "RECOVERED" })],
+      maquinas: [
+        comMontagem({
+          resultado: "RECOVERED",
+          pontosRemontados: ["/mnt/server_cbh"],
+          remontagensRecentes: 1,
+        }),
+      ],
       jobs: [],
       ...opcoes,
     });
-    expect(c).toEqual([]);
+
+    expect(c).toHaveLength(1);
+    expect(c[0]!.type).toBe("MOUNT_REMOUNTED");
+    expect(c[0]!.severity).toBe("WARNING");
+    expect(c[0]!.message).toContain("/mnt/server_cbh");
+    expect(c[0]!.message).toContain("primeira remontagem");
+  });
+
+  it("remontagem que se repete aponta a infraestrutura como suspeita", () => {
+    const c = derivarCondicoes({
+      maquinas: [
+        comMontagem({
+          resultado: "RECOVERED",
+          pontosRemontados: ["/mnt/server_cbh"],
+          remontagensRecentes: 4,
+        }),
+      ],
+      jobs: [],
+      ...opcoes,
+    });
+
+    expect(c[0]!.message).toContain("4ª remontagem");
+    expect(c[0]!.message).toContain("servidor de arquivos ou na rede");
+    expect(c[0]!.context).toMatchObject({ remontagensRecentes: 4 });
+  });
+
+  it("falha vence remontagem: um incidente por máquina, não dois", () => {
+    const c = derivarCondicoes({
+      maquinas: [
+        comMontagem({
+          resultado: "FAILED",
+          pontosComFalha: 1,
+          pontosRemontados: ["/mnt/outro"],
+          remontagensRecentes: 2,
+        }),
+      ],
+      jobs: [],
+      ...opcoes,
+    });
+
+    expect(c.map((x) => x.type)).toEqual(["MOUNT_FAILED"]);
+  });
+
+  it("remontagem some quando a verificação seguinte vem limpa", () => {
+    const aberto = {
+      id: "alerta-remontagem",
+      dedupeKey: chaveMontagemRemontada("maq-1"),
+      type: "MOUNT_REMOUNTED" as const,
+      relatedJobIds: [],
+    };
+
+    const condicoes = derivarCondicoes({
+      maquinas: [comMontagem({ resultado: "OK" })],
+      jobs: [],
+      ...opcoes,
+    });
+    const plano = planejarAlertas(condicoes, [aberto]);
+
+    expect(plano.fechar.map((a) => a.id)).toEqual(["alerta-remontagem"]);
+    expect(explicacaoDeRecuperacao("MOUNT_REMOUNTED")).toContain("sem precisar remontar");
+  });
+
+  it("lista longa de pontos não vira parágrafo na mensagem", () => {
+    const c = derivarCondicoes({
+      maquinas: [
+        comMontagem({
+          resultado: "RECOVERED",
+          pontosRemontados: ["/mnt/a", "/mnt/b", "/mnt/c", "/mnt/d", "/mnt/e"],
+          remontagensRecentes: 1,
+        }),
+      ],
+      jobs: [],
+      ...opcoes,
+    });
+
+    expect(c[0]!.message).toContain("/mnt/a, /mnt/b, /mnt/c e mais 2");
+    expect(c[0]!.message).not.toContain("/mnt/d");
   });
 
   it("verificação que parou de chegar vira alerta próprio", () => {
