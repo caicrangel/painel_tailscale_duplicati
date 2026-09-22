@@ -1,5 +1,6 @@
 import type { AlertSeverity, AlertType, JobStatus, MachineStatus } from "@prisma/client";
 import { minutosOffline } from "@/lib/jobs/late";
+import { avaliarAtrasoMontagem } from "@/lib/mounts/late";
 
 /**
  * Motor de alertas — lógica pura (regra 5 do CLAUDE.md).
@@ -210,28 +211,31 @@ export function derivarCondicoes(params: {
 
     // Verificação que parou de chegar: mesmo princípio do backup atrasado.
     // Sem ela, o backup roda sem rede de proteção e ninguém percebe.
-    if (montagem.intervaloMinutos !== null) {
-      const limite = (montagem.intervaloMinutos + montagem.toleranciaMinutos) * 60_000;
-      const ancora = montagem.ultimaEm;
-      if (ancora !== null && now.getTime() - ancora.getTime() > limite) {
-        const minutos = Math.floor((now.getTime() - ancora.getTime()) / 60_000);
-        condicoes.push({
-          dedupeKey: chaveMontagemParada(maquina.id),
-          type: "MOUNT_LATE",
-          severity: "WARNING",
-          title: `Verificação de montagem parada em ${nomeMaquina(maquina)}`,
-          message:
-            `A última verificação de montagens de ${nomeMaquina(maquina)} chegou há ` +
-            `${descreverAtraso(minutos)}. O backup pode estar rodando sem a checagem ` +
-            "que garante que os pontos estão no ar.",
-          clientId: maquina.clientId,
-          machineId: maquina.id,
-          backupJobId: null,
-          backupRunId: null,
-          relatedJobIds: [],
-          context: { minutosSemVerificacao: minutos },
-        });
-      }
+    const atraso = avaliarAtrasoMontagem({
+      ultimaEm: montagem.ultimaEm,
+      intervaloMinutos: montagem.intervaloMinutos,
+      toleranciaMinutos: montagem.toleranciaMinutos,
+      now,
+    });
+
+    if (atraso.atrasada) {
+      const minutos = atraso.minutosSemVerificacao ?? 0;
+      condicoes.push({
+        dedupeKey: chaveMontagemParada(maquina.id),
+        type: "MOUNT_LATE",
+        severity: "WARNING",
+        title: `Verificação de montagem parada em ${nomeMaquina(maquina)}`,
+        message:
+          `A última verificação de montagens de ${nomeMaquina(maquina)} chegou há ` +
+          `${descreverAtraso(minutos)}. O backup pode estar rodando sem a checagem ` +
+          "que garante que os pontos estão no ar.",
+        clientId: maquina.clientId,
+        machineId: maquina.id,
+        backupJobId: null,
+        backupRunId: null,
+        relatedJobIds: [],
+        context: { minutosSemVerificacao: minutos },
+      });
     }
   }
 
