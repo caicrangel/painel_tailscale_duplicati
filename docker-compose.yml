@@ -36,6 +36,12 @@ services:
       target: app
     restart: unless-stopped
     env_file: .env
+    # O resolver herdado do host costuma ser o MagicDNS (100.100.100.100), que
+    # o container não alcança: o DNS morre e toda chamada externa vira
+    # "fetch failed". Resolvers públicos, sobrescrevíveis pelo .env.
+    dns:
+      - ${DNS_PRIMARIO:-1.1.1.1}
+      - ${DNS_SECUNDARIO:-8.8.8.8}
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-painel}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-painel}?schema=public
       HOSTNAME: "0.0.0.0"
@@ -59,6 +65,12 @@ services:
       target: worker
     restart: unless-stopped
     env_file: .env
+    # O resolver herdado do host costuma ser o MagicDNS (100.100.100.100), que
+    # o container não alcança: o DNS morre e toda chamada externa vira
+    # "fetch failed". Resolvers públicos, sobrescrevíveis pelo .env.
+    dns:
+      - ${DNS_PRIMARIO:-1.1.1.1}
+      - ${DNS_SECUNDARIO:-8.8.8.8}
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-painel}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-painel}?schema=public
     depends_on:
