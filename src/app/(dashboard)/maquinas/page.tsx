@@ -105,8 +105,8 @@ export default async function MaquinasPage({
           <Table>
             <thead>
               <tr>
-                <Th>Máquina</Th>
                 <Th>Cliente</Th>
+                <Th>Máquina</Th>
                 <Th>Status</Th>
                 <Th>Jobs</Th>
                 <Th>SO</Th>
@@ -121,19 +121,6 @@ export default async function MaquinasPage({
                 return (
                   <Tr key={m.id}>
                     <Td>
-                      <Link
-                        href={`/maquinas/${m.id}`}
-                        className="font-medium hover:text-[var(--color-info)]"
-                      >
-                        {m.displayName ?? m.hostname}
-                      </Link>
-                      {m.updateAvailable && (
-                        <Badge tone="info" className="ml-2">
-                          update
-                        </Badge>
-                      )}
-                    </Td>
-                    <Td>
                       {m.role === "SUPORTE" ? (
                         <Badge tone="info">apoio · todos os clientes</Badge>
                       ) : m.client ? (
@@ -145,6 +132,19 @@ export default async function MaquinasPage({
                         </Link>
                       ) : (
                         <Badge tone="warn">não atribuída</Badge>
+                      )}
+                    </Td>
+                    <Td>
+                      <Link
+                        href={`/maquinas/${m.id}`}
+                        className="font-medium hover:text-[var(--color-info)]"
+                      >
+                        {m.displayName ?? m.hostname}
+                      </Link>
+                      {m.updateAvailable && (
+                        <Badge tone="info" className="ml-2">
+                          update
+                        </Badge>
                       )}
                     </Td>
                     <Td>
