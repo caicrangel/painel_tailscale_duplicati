@@ -36,6 +36,15 @@ export type MontagemSnapshot = {
   ultimaEm: Date | null;
   resultado: "OK" | "RECOVERED" | "FAILED" | "UNKNOWN" | null;
   pontosComFalha: number;
+  /** Caminhos que o script encontrou fora e conseguiu remontar. */
+  pontosRemontados: string[];
+  /**
+   * Quantas verificações desta máquina terminaram em remontagem na janela de
+   * recorrência. Um share que volta sozinho toda noite não é incidente isolado
+   * — é o servidor de arquivos ou a rede pedindo atenção, e só o histórico diz
+   * isso. Por isso o número entra na mensagem em vez de ficar só na tela.
+   */
+  remontagensRecentes: number;
   /** Nulo = não vigiar atraso desta verificação. */
   intervaloMinutos: number | null;
   toleranciaMinutos: number;
@@ -89,6 +98,8 @@ export const chaveJobAtrasado = (jobId: string) => `backup_late:job:${jobId}`;
 export const chaveJobFalhou = (jobId: string) => `backup_failed:job:${jobId}`;
 export const chaveJobWarning = (jobId: string) => `backup_warning:job:${jobId}`;
 export const chaveMontagemFalhou = (machineId: string) => `mount_failed:machine:${machineId}`;
+export const chaveMontagemRemontada = (machineId: string) =>
+  `mount_remounted:machine:${machineId}`;
 export const chaveMontagemParada = (machineId: string) => `mount_late:machine:${machineId}`;
 
 // ─── Derivação das condições ─────────────────────────────────────────────────
@@ -99,6 +110,15 @@ function nomeMaquina(m: MaquinaSnapshot): string {
 
 function emManutencao(m: MaquinaSnapshot, now: Date): boolean {
   return m.maintenanceUntil !== null && m.maintenanceUntil.getTime() > now.getTime();
+}
+
+/** Janela do contador de remontagens que vai dentro do alerta. */
+export const JANELA_REMONTAGENS_DIAS = 7;
+
+/** Lista os caminhos sem deixar a mensagem virar um parágrafo. */
+function listarCaminhos(paths: string[]): string {
+  if (paths.length <= 3) return paths.join(", ");
+  return `${paths.slice(0, 3).join(", ")} e mais ${paths.length - 3}`;
 }
 
 function descreverAtraso(minutos: number): string {
@@ -205,6 +225,49 @@ export function derivarCondicoes(params: {
         backupRunId: null,
         relatedJobIds: [],
         context: { pontosComFalha: montagem.pontosComFalha },
+      });
+      continue;
+    }
+
+    // Remontagem bem-sucedida: o script consertou, então o backup está
+    // protegido — mas o share caiu, e isso é o aviso que vem antes do
+    // MOUNT_FAILED. Sem este alerta a queda fica só no histórico, e um ponto
+    // que cai toda noite passa despercebido até o dia em que não volta.
+    if (montagem.resultado === "RECOVERED") {
+      const quantos = montagem.pontosRemontados.length;
+      const recorrente = montagem.remontagensRecentes > 1;
+
+      condicoes.push({
+        dedupeKey: chaveMontagemRemontada(maquina.id),
+        type: "MOUNT_REMOUNTED",
+        severity: "WARNING",
+        title: `Ponto de montagem remontado em ${nomeMaquina(maquina)}`,
+        message:
+          `A verificação de montagens de ${nomeMaquina(maquina)}` +
+          `${maquina.clientName ? ` (${maquina.clientName})` : ""} encontrou ` +
+          `${
+            quantos > 0
+              ? `${quantos} ponto${quantos === 1 ? "" : "s"} fora e remontou: ` +
+                listarCaminhos(montagem.pontosRemontados)
+              : "ponto(s) fora e conseguiu remontar"
+          }. ` +
+          "O backup seguiu protegido, mas o share saiu do ar — " +
+          (recorrente
+            ? `é a ${montagem.remontagensRecentes}ª remontagem desta máquina em ` +
+              `${JANELA_REMONTAGENS_DIAS} dias. Queda que se repete costuma estar no ` +
+              "servidor de arquivos ou na rede, não na máquina do cliente."
+            : `foi a primeira remontagem em ${JANELA_REMONTAGENS_DIAS} dias. ` +
+              "Se voltar a acontecer, vale olhar de onde vem o mapeamento."),
+        clientId: maquina.clientId,
+        machineId: maquina.id,
+        backupJobId: null,
+        backupRunId: null,
+        relatedJobIds: [],
+        context: {
+          pontosRemontados: montagem.pontosRemontados,
+          remontagensRecentes: montagem.remontagensRecentes,
+          janelaDias: JANELA_REMONTAGENS_DIAS,
+        },
       });
       continue;
     }
@@ -363,6 +426,8 @@ export function explicacaoDeRecuperacao(type: AlertaAberto["type"]): string {
       return "A última execução terminou limpa.";
     case "MOUNT_FAILED":
       return "Os pontos de montagem voltaram a responder.";
+    case "MOUNT_REMOUNTED":
+      return "A verificação seguinte encontrou tudo montado, sem precisar remontar.";
     case "MOUNT_LATE":
       return "A verificação de montagens voltou a chegar.";
     default:

@@ -4,6 +4,7 @@ import { getSettings } from "@/lib/config/settings";
 import {
   derivarCondicoes,
   planejarAlertas,
+  JANELA_REMONTAGENS_DIAS,
   type JobSnapshot,
   type MaquinaSnapshot,
 } from "@/lib/alerts/engine";
@@ -47,7 +48,10 @@ export async function avaliarAlertas(now: Date = new Date()): Promise<number> {
           mountChecks: {
             orderBy: { receivedAt: "desc" },
             take: 1,
-            select: { pointsFailed: true },
+            select: {
+              pointsFailed: true,
+              points: { where: { status: "REMOUNTED" }, select: { path: true } },
+            },
           },
           client: { select: { name: true } },
         },
@@ -73,6 +77,19 @@ export async function avaliarAlertas(now: Date = new Date()): Promise<number> {
       }),
     ]);
 
+    // Quantas vezes cada máquina precisou de remontagem na janela. É o que
+    // separa "caiu uma vez" de "cai toda noite" — e o segundo caso é problema
+    // de infraestrutura, não da máquina do cliente.
+    const desde = new Date(now.getTime() - JANELA_REMONTAGENS_DIAS * 24 * 60 * 60_000);
+    const remontagens = await prisma.mountCheck.groupBy({
+      by: ["machineId"],
+      where: { result: "RECOVERED", receivedAt: { gte: desde } },
+      _count: { _all: true },
+    });
+    const remontagensPorMaquina = new Map(
+      remontagens.map((r) => [r.machineId, r._count._all]),
+    );
+
     const maquinas: MaquinaSnapshot[] = maquinasDb.map((m) => ({
       id: m.id,
       clientId: m.clientId,
@@ -87,6 +104,8 @@ export async function avaliarAlertas(now: Date = new Date()): Promise<number> {
               ultimaEm: m.lastMountCheckAt,
               resultado: m.lastMountCheckResult,
               pontosComFalha: m.mountChecks[0]?.pointsFailed ?? 0,
+              pontosRemontados: m.mountChecks[0]?.points.map((p) => p.path) ?? [],
+              remontagensRecentes: remontagensPorMaquina.get(m.id) ?? 0,
               intervaloMinutos: m.mountCheckIntervalMinutes,
               toleranciaMinutos: m.mountCheckToleranceMinutes,
             },
