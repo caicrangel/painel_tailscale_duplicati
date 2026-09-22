@@ -26,7 +26,7 @@ describe("montarResumo", () => {
       "21/09/2026",
     );
     expect(r.texto.startsWith("🟢")).toBe(true);
-    expect(r.titulo).toBe("Resumo de backups — 21/09/2026");
+    expect(r.titulo).toBe("🟢 Resumo de backups — 21/09/2026");
   });
 
   it("lidera com vermelho quando há job com erro ou atrasado", () => {
@@ -58,9 +58,10 @@ describe("montarResumo", () => {
 
   it("traz os números de máquinas, jobs e execuções", () => {
     const r = montarResumo(dados(), "x");
-    expect(r.texto).toContain("online 5");
-    expect(r.texto).toContain("OK 8");
-    expect(r.texto).toContain("sucesso 9");
+    // Régua monoespaçada: rótulo à esquerda, número alinhado à direita.
+    expect(r.texto).toMatch(/Online\s+5/);
+    expect(r.texto).toMatch(/OK\s+8/);
+    expect(r.texto).toMatch(/Sucesso\s+9/);
     expect(r.texto).toContain("2,30 GB");
   });
 

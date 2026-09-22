@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   deveEnviarRecibo,
   formatarRecibo,
-  larguraVisual,
   type DadosExecucao,
 } from "@/lib/alerts/execucao";
+import { larguraVisual } from "@/lib/alerts/formato";
 
 const fixture = (nome: string) =>
   JSON.parse(readFileSync(new URL(`./fixtures/duplicati/${nome}`, import.meta.url), "utf8"));
