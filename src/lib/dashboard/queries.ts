@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import type { DiaDaFaixa } from "@/components/heat-strip";
 import { avaliarAtrasoMontagem } from "@/lib/mounts/late";
+import { eixoDeDias, inicioDaJanela } from "./dias";
 
 /**
  * Consultas do dashboard. Todas respondem em uma query — é para isso que os
@@ -83,12 +84,24 @@ export async function carregarProblemas(limite = 25) {
   });
 }
 
-type LinhaFaixa = { jobId: string; dia: Date; pior: string; execucoes: bigint };
+type LinhaFaixa = { jobId: string; dia: string; resultado: string; execucoes: bigint };
+
+const RESULTADO: Record<string, DiaDaFaixa["resultado"]> = {
+  SUCCESS: "SUCCESS",
+  WARNING: "WARNING",
+  ERROR: "ERROR",
+  FATAL: "FATAL",
+  UNKNOWN: "DESCONHECIDO",
+};
 
 /**
- * Pior resultado por dia, por job, nos últimos N dias — na timezone da operação.
- * "Pior" segue a ordem Fatal > Error > Warning > Success: um dia com uma falha
- * não pode parecer verde porque houve um sucesso depois.
+ * Resultado de cada dia, por job, nos últimos N dias — na timezone da operação.
+ *
+ * A célula mostra a ÚLTIMA execução do dia, que é o mesmo critério do card
+ * "Último resultado" no topo da tela. Antes mostrava a pior do dia, e as duas
+ * leituras se contradiziam: o card dizia "Sucesso" enquanto a faixa pintava o
+ * dia de amarelo por causa de uma execução anterior. O tooltip conta quantas
+ * execuções houve, que é o fio para puxar quando o dia teve mais de uma.
  */
 export async function carregarFaixas(
   jobIds: string[],
@@ -97,70 +110,65 @@ export async function carregarFaixas(
   const mapa = new Map<string, DiaDaFaixa[]>();
   if (jobIds.length === 0) return mapa;
 
-  const desde = new Date(Date.now() - (dias - 1) * 86_400_000);
+  const eixo = eixoDeDias(dias, new Date(), TZ);
+  const desde = inicioDaJanela(eixo);
 
+  // `receivedAt` é timestamp WITHOUT time zone com o instante em UTC, e é isso
+  // que a dupla conversão abaixo diz ao Postgres: primeiro rotula o valor como
+  // UTC, depois o converte para a timezone da operação.
+  //
+  // Só `AT TIME ZONE ${TZ}` fazia o oposto — interpretava um valor que já
+  // estava em UTC como se fosse hora local — e o date_trunc seguinte desfazia
+  // o engano usando a timezone da sessão, de modo que o agrupamento acabava
+  // caindo no dia UTC. Backup que terminava depois das 21h era contado no dia
+  // seguinte, e um job que roda às 19h vivia a 2h dessa borda.
   const linhas = await prisma.$queryRaw<LinhaFaixa[]>`
-    SELECT
-      "backupJobId" AS "jobId",
-      date_trunc('day', "receivedAt" AT TIME ZONE ${TZ}) AS dia,
-      MAX(
-        CASE "parsedResult"
-          WHEN 'FATAL' THEN 4
-          WHEN 'ERROR' THEN 3
-          WHEN 'WARNING' THEN 2
-          WHEN 'SUCCESS' THEN 1
-          ELSE 0 -- UNKNOWN: rodou, mas o relatório não foi interpretado
-        END
-      )::text AS pior,
-      COUNT(*) AS execucoes
-    FROM backup_runs
-    WHERE "backupJobId" = ANY(${jobIds})
-      AND "receivedAt" >= ${desde}
-    GROUP BY 1, 2
+    WITH execucoes AS (
+      SELECT
+        "backupJobId" AS "jobId",
+        to_char(
+          ("receivedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${TZ},
+          'YYYY-MM-DD'
+        ) AS dia,
+        "parsedResult"::text AS resultado,
+        "receivedAt"
+      FROM backup_runs
+      WHERE "backupJobId" = ANY(${jobIds})
+        AND "receivedAt" >= ${desde}
+    )
+    SELECT DISTINCT ON ("jobId", dia)
+      "jobId",
+      dia,
+      resultado,
+      COUNT(*) OVER (PARTITION BY "jobId", dia) AS execucoes
+    FROM execucoes
+    ORDER BY "jobId", dia, "receivedAt" DESC
   `;
 
-  const porJob = new Map<string, Map<string, { pior: number; execucoes: number }>>();
+  const porJob = new Map<string, Map<string, LinhaFaixa>>();
   for (const linha of linhas) {
-    const chaveDia = linha.dia.toISOString().slice(0, 10);
-    const doJob = porJob.get(linha.jobId) ?? new Map();
-    doJob.set(chaveDia, { pior: Number(linha.pior), execucoes: Number(linha.execucoes) });
+    const doJob = porJob.get(linha.jobId) ?? new Map<string, LinhaFaixa>();
+    doJob.set(linha.dia, linha);
     porJob.set(linha.jobId, doJob);
   }
 
-  const hoje = new Date();
   for (const jobId of jobIds) {
-    const doJob = porJob.get(jobId) ?? new Map<string, { pior: number; execucoes: number }>();
-    const faixa: DiaDaFaixa[] = [];
+    const doJob = porJob.get(jobId);
 
-    for (let i = dias - 1; i >= 0; i -= 1) {
-      const data = new Date(hoje.getTime() - i * 86_400_000).toISOString().slice(0, 10);
-      const registro = doJob.get(data);
-      faixa.push({
-        data,
-        resultado: registro ? traduzirPior(registro.pior) : "NENHUM",
-        execucoes: registro?.execucoes ?? 0,
-      });
-    }
-
-    mapa.set(jobId, faixa);
+    mapa.set(
+      jobId,
+      eixo.map((data) => {
+        const registro = doJob?.get(data);
+        return {
+          data,
+          resultado: registro ? (RESULTADO[registro.resultado] ?? "DESCONHECIDO") : "NENHUM",
+          execucoes: registro ? Number(registro.execucoes) : 0,
+        };
+      }),
+    );
   }
 
   return mapa;
-}
-
-function traduzirPior(valor: number): DiaDaFaixa["resultado"] {
-  switch (valor) {
-    case 4:
-      return "FATAL";
-    case 3:
-      return "ERROR";
-    case 2:
-      return "WARNING";
-    case 1:
-      return "SUCCESS";
-    default:
-      return "DESCONHECIDO";
-  }
 }
 
 /**
