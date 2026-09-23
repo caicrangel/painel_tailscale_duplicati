@@ -85,7 +85,7 @@ export function HeatStrip({ dias, className }: { dias: DiaDaFaixa[]; className?:
         <span
           key={dia.data}
           title={`${formatarDia(dia.data)} — ${ROTULO[dia.resultado]}${
-            dia.execucoes > 1 ? ` (${dia.execucoes} execuções)` : ""
+            dia.execucoes > 1 ? ` (última de ${dia.execucoes} execuções no dia)` : ""
           }`}
           aria-label={`${formatarDia(dia.data)}: ${ROTULO[dia.resultado]}`}
           className="h-4 w-2 shrink-0 rounded-[2px]"
