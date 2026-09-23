@@ -51,7 +51,8 @@ export function MobileNav({
       <header className="sticky top-0 z-30 flex items-center gap-2.5 border-b border-[var(--color-border)] bg-[var(--color-surface)]/90 px-4 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] backdrop-blur md:hidden">
         {/* A barra do topo no celular não cresce: acima de 44px ela come a tela. */}
         <CabecalhoMarca marca={marca} alturaMaxima={44} />
-        <ThemeToggle compacto />
+        {/* Sem o seletor de tema aqui: ele já está na gaveta "Mais", e um botão
+            só de um lado tirava o logo do centro da barra. */}
       </header>
 
       <nav
