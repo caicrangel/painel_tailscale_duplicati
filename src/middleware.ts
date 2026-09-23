@@ -5,7 +5,7 @@ import { authConfig } from "./auth.config";
 const { auth } = NextAuth(authConfig);
 
 /** Rotas acessíveis sem sessão. Tudo o mais exige login. */
-const PUBLICAS = ["/login", "/api/auth", "/api/ingest", "/api/health"];
+const PUBLICAS = ["/login", "/api/auth", "/api/ingest", "/api/health", "/api/marca"];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;

@@ -172,6 +172,27 @@ relance qual share de qual cliente está fora.
 
 ---
 
+### 2.7 Aparência (Configurações › Aparência, só ADMIN)
+
+Nome e subtítulo do painel, um logo por tema (claro e escuro), cor de destaque e tema
+padrão para quem ainda não escolheu um. Tudo em `settings` — sem tabela nova:
+`aparencia` guarda os campos e a versão (hash) de cada logo; `aparencia.logo.claro` e
+`aparencia.logo.escuro` guardam o arquivo, em chaves próprias para a página não carregar a
+imagem a cada request.
+
+- **Logos**: PNG, JPG, WEBP ou SVG até 256 KB, tipo conferido pelos bytes. Enviado só um,
+  vale para os dois temas. As duas versões vão para a página e o CSS mostra a do tema
+  ativo — trocar o tema troca o logo sem recarregar. Servidos em `/api/marca/logo/<tema>`,
+  rota pública (o login mostra o logo), com URL versionada e cache eterno. SVG com script,
+  evento, `foreignObject`, entidade ou recurso externo é recusado no upload, e a rota ainda
+  responde com CSP `sandbox`.
+- **Nome ao lado do logo** (opcional): desligado, o logotipo ocupa o cabeçalho do menu.
+- **Cor de destaque**: substitui o azul de botões, links, item ativo e foco. A cor é
+  clareada ou escurecida no mínimo necessário para contraste 4.5:1 em cada tema. As cores de
+  status (ok, warning, erro, atrasado) não mudam: carregam significado.
+- **Tema padrão**: vale para navegador sem escolha própria; a escolha do usuário continua
+  vencendo.
+
 ## 3. Lógica crítica (a que vai ter teste)
 
 ### 3.1 Parsing do payload do Duplicati

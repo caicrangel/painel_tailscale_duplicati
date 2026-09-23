@@ -47,7 +47,6 @@ const nextConfig: NextConfig = {
         headers: [
           // O painel nunca é legitimamente embutido em outra página.
           { key: "X-Frame-Options", value: "DENY" },
-          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           // Endereço da tailnet não vaza no Referer ao clicar em link externo.
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
@@ -56,6 +55,12 @@ const nextConfig: NextConfig = {
             value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
           },
         ],
+      },
+      {
+        // Fora da rota do logo: lá a própria rota manda um CSP mais estrito
+        // (com sandbox) e este aqui o substituiria.
+        source: "/((?!api/marca/).*)",
+        headers: [{ key: "Content-Security-Policy", value: "frame-ancestors 'none'" }],
       },
     ];
   },
