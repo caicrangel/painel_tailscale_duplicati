@@ -130,7 +130,7 @@ export default async function JobDetalhePage({ params }: { params: Promise<{ id:
         colunas do banco quando ele não tem o número: as duas fontes existem, e
         divergir entre elas na mesma tela confunde mais que informa.
       */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile
           label="Último resultado"
           value={ultima ? PARSED_RESULT[ultima.parsedResult].label : "—"}

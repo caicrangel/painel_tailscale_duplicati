@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, Td, Th, Tr, EmptyState } from "@/components/ui/table";
+import { NomeMaquina } from "@/components/ui/lista-movel";
 import { atualizarCliente } from "@/server/clients-actions";
 import { MACHINE_STATUS, JOB_STATUS } from "@/lib/utils/status";
 import { fmtRelativo } from "@/lib/utils/format";
@@ -52,7 +53,7 @@ export default async function ClienteDetalhePage({
       />
 
       <div className="grid gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-3 space-y-6">
+        <div className="min-w-0 space-y-6 lg:col-span-3">
           {podeVerTokenDeIngestao(user.role) ? (
             <Card>
               <CardHeader>
@@ -92,8 +93,8 @@ export default async function ClienteDetalhePage({
                   <tr>
                     <Th>Máquina</Th>
                     <Th>Status</Th>
-                    <Th>Jobs</Th>
-                    <Th>Último contato</Th>
+                    <Th className="hidden sm:table-cell">Jobs</Th>
+                    <Th className="hidden sm:table-cell">Último contato</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -108,16 +109,20 @@ export default async function ClienteDetalhePage({
                             href={`/maquinas/${m.id}`}
                             className="font-medium hover:text-[var(--color-info)]"
                           >
-                            {m.displayName ?? m.hostname}
+                            <NomeMaquina nome={m.displayName ?? m.hostname} />
                           </Link>
                           <p className="text-xs text-[var(--color-faint)]">{m.os ?? "SO não informado"}</p>
+                          <p className="text-xs text-[var(--color-faint)] sm:hidden">
+                            {m._count.backupJobs} job(s)
+                            {problemas > 0 && ` · ${problemas} com problema`} · {fmtRelativo(m.lastSeen)}
+                          </p>
                         </Td>
                         <Td>
                           <Badge tone={MACHINE_STATUS[m.status].tone} dot>
                             {MACHINE_STATUS[m.status].label}
                           </Badge>
                         </Td>
-                        <Td>
+                        <Td className="hidden sm:table-cell">
                           <span className="tabular-nums">{m._count.backupJobs}</span>
                           {problemas > 0 && (
                             <Badge tone={JOB_STATUS.ERROR.tone} className="ml-2">
@@ -125,7 +130,9 @@ export default async function ClienteDetalhePage({
                             </Badge>
                           )}
                         </Td>
-                        <Td className="text-[var(--color-muted)]">{fmtRelativo(m.lastSeen)}</Td>
+                        <Td className="hidden text-[var(--color-muted)] sm:table-cell">
+                          {fmtRelativo(m.lastSeen)}
+                        </Td>
                       </Tr>
                     );
                   })}
@@ -135,7 +142,7 @@ export default async function ClienteDetalhePage({
           </Card>
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="min-w-0 lg:col-span-2">
           <Card>
             <CardHeader>
               <CardTitle>{podeEditar ? "Dados do cliente" : "Dados"}</CardTitle>

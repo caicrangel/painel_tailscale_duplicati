@@ -58,9 +58,10 @@ export function RunHistory({ linhas }: { linhas: LinhaExecucao[] }) {
           <Th className="w-px" />
           <Th>Recebido</Th>
           <Th>Resultado</Th>
-          <Th>Duração</Th>
-          <Th>Enviado</Th>
-          <Th>Avisos</Th>
+          {/* No celular estas três viram uma linha embaixo da data. */}
+          <Th className="hidden sm:table-cell">Duração</Th>
+          <Th className="hidden sm:table-cell">Enviado</Th>
+          <Th className="hidden sm:table-cell">Avisos</Th>
         </tr>
       </thead>
       <tbody>
@@ -83,17 +84,27 @@ export function RunHistory({ linhas }: { linhas: LinhaExecucao[] }) {
                     )}
                   </button>
                 </Td>
-                <Td className="whitespace-nowrap text-[var(--color-muted)]">
+                <Td className="text-[var(--color-muted)] sm:whitespace-nowrap">
                   {fmtDataHora(linha.receivedAt)}
+                  <span className="mt-0.5 block text-xs text-[var(--color-faint)] sm:hidden">
+                    {[
+                      fmtDuracao(linha.durationSeconds),
+                      fmtBytes(linha.bytesUploaded),
+                      linha.warningsCount > 0 ? `${linha.warningsCount} warning(s)` : null,
+                      linha.errorsCount > 0 ? `${linha.errorsCount} erro(s)` : null,
+                    ]
+                      .filter((x) => x && x !== "—")
+                      .join(" · ")}
+                  </span>
                 </Td>
                 <Td>
                   <Badge tone={PARSED_RESULT[linha.parsedResult].tone} dot>
                     {PARSED_RESULT[linha.parsedResult].label}
                   </Badge>
                 </Td>
-                <Td className="text-[var(--color-muted)]">{fmtDuracao(linha.durationSeconds)}</Td>
-                <Td className="text-[var(--color-muted)]">{fmtBytes(linha.bytesUploaded)}</Td>
-                <Td>
+                <Td className="hidden text-[var(--color-muted)] sm:table-cell">{fmtDuracao(linha.durationSeconds)}</Td>
+                <Td className="hidden text-[var(--color-muted)] sm:table-cell">{fmtBytes(linha.bytesUploaded)}</Td>
+                <Td className="hidden sm:table-cell">
                   <span className="text-xs text-[var(--color-muted)]">
                     {linha.warningsCount > 0 && `${linha.warningsCount} warning(s) `}
                     {linha.errorsCount > 0 && `${linha.errorsCount} erro(s)`}
@@ -109,7 +120,7 @@ export function RunHistory({ linhas }: { linhas: LinhaExecucao[] }) {
 
               {aberto && (
                 <tr>
-                  <td colSpan={6} className="border-b border-[var(--color-border)] bg-[var(--color-bg)]/40 px-4 py-4">
+                  <td colSpan={6} className="border-b border-[var(--color-border)] bg-[var(--color-bg)]/40 px-3 py-3 sm:px-4 sm:py-4">
                     <ResumoExecucao linha={linha} />
                   </td>
                 </tr>

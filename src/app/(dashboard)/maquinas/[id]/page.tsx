@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, Td, Th, Tr, EmptyState } from "@/components/ui/table";
+import { NomeMaquina } from "@/components/ui/lista-movel";
 import { MACHINE_STATUS, JOB_STATUS } from "@/lib/utils/status";
 import { fmtDataHora, fmtIntervalo, fmtRelativo } from "@/lib/utils/format";
 import { AssignForm } from "./assign-form";
@@ -49,7 +50,7 @@ export default async function MaquinaDetalhePage({ params }: { params: Promise<{
   return (
     <div className="space-y-6">
       <PageHeader
-        title={maquina.displayName ?? maquina.hostname}
+        title={<NomeMaquina nome={maquina.displayName ?? maquina.hostname} />}
         subtitle={
           maquina.role === "SUPORTE"
             ? "Máquina de apoio — atende todos os clientes"
@@ -69,7 +70,7 @@ export default async function MaquinaDetalhePage({ params }: { params: Promise<{
       />
 
       <div className="grid gap-6 lg:grid-cols-5">
-        <div className="space-y-6 lg:col-span-3">
+        <div className="min-w-0 space-y-6 lg:col-span-3">
           <Card>
             <CardHeader>
               <CardTitle>Jobs de backup</CardTitle>
@@ -85,29 +86,36 @@ export default async function MaquinaDetalhePage({ params }: { params: Promise<{
                   <tr>
                     <Th>Job</Th>
                     <Th>Status</Th>
-                    <Th>Frequência</Th>
-                    <Th>Última execução</Th>
-                    <Th>Próxima esperada</Th>
+                    <Th className="hidden sm:table-cell">Frequência</Th>
+                    <Th className="hidden sm:table-cell">Última execução</Th>
+                    <Th className="hidden sm:table-cell">Próxima esperada</Th>
                   </tr>
                 </thead>
                 <tbody>
                   {maquina.backupJobs.map((j) => (
                     <Tr key={j.id}>
                       <Td>
-                        <Link href={`/jobs/${j.id}`} className="font-medium hover:text-[var(--color-info)]">
+                        <Link
+                          href={`/jobs/${j.id}`}
+                          className="font-medium [overflow-wrap:anywhere] hover:text-[var(--color-info)]"
+                        >
                           {j.name}
                         </Link>
+                        <p className="mt-0.5 text-xs text-[var(--color-faint)] sm:hidden">
+                          {fmtIntervalo(j.expectedIntervalMinutes)} · última {fmtRelativo(j.lastRunAt)} ·
+                          próxima {fmtRelativo(j.nextExpectedAt)}
+                        </p>
                       </Td>
                       <Td>
                         <Badge tone={JOB_STATUS[j.status].tone} dot>
                           {JOB_STATUS[j.status].label}
                         </Badge>
                       </Td>
-                      <Td className="text-[var(--color-muted)]">
+                      <Td className="hidden text-[var(--color-muted)] sm:table-cell">
                         {fmtIntervalo(j.expectedIntervalMinutes)}
                       </Td>
-                      <Td className="text-[var(--color-muted)]">{fmtRelativo(j.lastRunAt)}</Td>
-                      <Td className="text-[var(--color-muted)]">{fmtRelativo(j.nextExpectedAt)}</Td>
+                      <Td className="hidden text-[var(--color-muted)] sm:table-cell">{fmtRelativo(j.lastRunAt)}</Td>
+                      <Td className="hidden text-[var(--color-muted)] sm:table-cell">{fmtRelativo(j.nextExpectedAt)}</Td>
                     </Tr>
                   ))}
                 </tbody>
@@ -146,7 +154,7 @@ export default async function MaquinaDetalhePage({ params }: { params: Promise<{
           </Card>
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="min-w-0 lg:col-span-2">
           <Card>
             <CardHeader>
               <CardTitle>Configuração</CardTitle>

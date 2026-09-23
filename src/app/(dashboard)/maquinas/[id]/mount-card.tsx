@@ -112,7 +112,7 @@ export function MountCard({
             <tr>
               <Th>Ponto</Th>
               <Th>Situação</Th>
-              <Th>Tipo</Th>
+              <Th className="hidden sm:table-cell">Tipo</Th>
               <Th>Uso</Th>
             </tr>
           </thead>
@@ -130,7 +130,7 @@ export function MountCard({
                     {MOUNT_POINT_STATUS[p.status].label}
                   </Badge>
                 </Td>
-                <Td className="text-xs text-[var(--color-muted)]">
+                <Td className="hidden text-xs text-[var(--color-muted)] sm:table-cell">
                   {p.fsTypeActual ?? "—"}
                   {p.fsTypeExpected && p.fsTypeActual && p.fsTypeExpected !== p.fsTypeActual && (
                     <span className="ml-1 text-[var(--color-danger)]">
@@ -143,7 +143,9 @@ export function MountCard({
                     <>
                       {p.usePercent ?? "—"}
                       {p.available && (
-                        <span className="text-[var(--color-faint)]"> · livre {p.available}</span>
+                        <span className="block whitespace-nowrap text-[var(--color-faint)] sm:inline">
+                          <span className="hidden sm:inline"> · </span>livre {p.available}
+                        </span>
                       )}
                     </>
                   ) : (
