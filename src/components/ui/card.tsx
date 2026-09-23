@@ -5,7 +5,10 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
   return (
     <div
       className={cn(
-        "rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]",
+        // min-w-0: dentro de grid ou flex, o cartão encolhe até a largura da
+        // tela e a tabela rola dentro dele — sem isto a página inteira ganhava
+        // rolagem lateral no celular.
+        "min-w-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]",
         className,
       )}
       {...props}
