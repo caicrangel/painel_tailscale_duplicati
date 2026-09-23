@@ -36,7 +36,14 @@ export function ThemeToggle({
   const [montado, setMontado] = useState(false);
 
   useEffect(() => {
-    const salvo = (localStorage.getItem(CHAVE) as Preferencia | null) ?? "system";
+    // Sem escolha própria, vale o tema padrão definido em Configurações › Aparência.
+    const padrao = (document.documentElement.dataset.temaPadrao as Preferencia | undefined) ?? "system";
+    let salvo: Preferencia = padrao;
+    try {
+      salvo = (localStorage.getItem(CHAVE) as Preferencia | null) ?? padrao;
+    } catch {
+      // storage bloqueado: fica o padrão
+    }
     setPref(salvo);
     setMontado(true);
   }, []);

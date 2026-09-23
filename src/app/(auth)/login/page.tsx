@@ -1,24 +1,26 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { ShieldCheck } from "lucide-react";
 import { LoginForm } from "./login-form";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LogoMarca } from "@/components/marca";
+import { getAparencia } from "@/lib/config/aparencia";
 
-export const metadata: Metadata = { title: "Entrar · Painel" };
+export const metadata: Metadata = { title: "Entrar" };
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const a = await getAparencia();
+
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <div className="flex size-11 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
-            <ShieldCheck className="size-5 text-[var(--color-info)]" />
-          </div>
+          <LogoMarca
+            marca={{ nome: a.nome, subtitulo: a.subtitulo, logos: a.logos, mostrarNome: a.mostrarNome }}
+            className={a.logos ? "h-14 max-w-60 justify-center" : "size-11 rounded-xl"}
+          />
           <div>
-            <h1 className="text-lg font-semibold">Painel de Monitoramento</h1>
-            <p className="mt-1 text-sm text-[var(--color-muted)]">
-              Infraestrutura e backups dos clientes
-            </p>
+            <h1 className={a.logos && !a.mostrarNome ? "sr-only" : "text-lg font-semibold"}>{a.nome}</h1>
+            {a.subtitulo && <p className="mt-1 text-sm text-[var(--color-muted)]">{a.subtitulo}</p>}
           </div>
         </div>
 

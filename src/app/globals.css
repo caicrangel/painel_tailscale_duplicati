@@ -121,6 +121,14 @@ dialog.gaveta[open] {
   dialog.gaveta[open] { animation: none; }
 }
 
+/*
+ * Logo por tema: as duas imagens estão na página, só a do tema ativo aparece.
+ * Sem camada pelo mesmo motivo da gaveta — precisa vencer as utilities.
+ */
+.logo-tema-claro { display: none; }
+:root[data-theme="light"] .logo-tema-claro { display: block; }
+:root[data-theme="light"] .logo-tema-escuro { display: none; }
+
 /* Enquanto um diálogo está aberto, a página atrás não rola. */
 body:has(dialog[open]) {
   overflow: hidden;

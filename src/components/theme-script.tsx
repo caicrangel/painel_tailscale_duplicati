@@ -6,10 +6,11 @@
  * o atributo data-theme no <html> guarda o tema EFETIVO ("light" | "dark").
  * Com isso o CSS só precisa conhecer [data-theme="light"].
  */
-const script = `
+const script = (temaPadrao: string) => `
 (function () {
+  document.documentElement.setAttribute("data-tema-padrao", ${JSON.stringify(temaPadrao)});
   try {
-    var pref = localStorage.getItem("painel.tema") || "system";
+    var pref = localStorage.getItem("painel.tema") || ${JSON.stringify(temaPadrao)};
     var escuro =
       pref === "dark" ||
       (pref === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
@@ -20,6 +21,7 @@ const script = `
 })();
 `;
 
-export function ThemeScript() {
-  return <script dangerouslySetInnerHTML={{ __html: script }} />;
+/** `temaPadrao` vale para quem nunca escolheu um tema neste navegador. */
+export function ThemeScript({ temaPadrao = "system" }: { temaPadrao?: "system" | "light" | "dark" }) {
+  return <script dangerouslySetInnerHTML={{ __html: script(temaPadrao) }} />;
 }

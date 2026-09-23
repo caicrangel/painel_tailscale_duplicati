@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight, LogOut, Menu, ShieldCheck, X } from "lucide-react";
+import { ChevronRight, LogOut, Menu, X } from "lucide-react";
 import type { Role } from "@prisma/client";
 import { logoutAction } from "@/server/auth-actions";
 import { ROLE_LABEL } from "@/lib/auth/roles";
@@ -13,6 +13,7 @@ import {
   itensDoPapel,
   type ContagemAlertas,
 } from "@/components/navegacao";
+import { CabecalhoMarca, type DadosMarca } from "@/components/marca";
 import { cn } from "@/lib/utils/cn";
 
 /**
@@ -26,9 +27,11 @@ import { cn } from "@/lib/utils/cn";
 export function MobileNav({
   user,
   alertas,
+  marca,
 }: {
   user: { name: string; email: string; role: Role };
   alertas: ContagemAlertas;
+  marca: DadosMarca;
 }) {
   const pathname = usePathname();
   const [gavetaAberta, setGavetaAberta] = useState(false);
@@ -46,15 +49,7 @@ export function MobileNav({
   return (
     <>
       <header className="sticky top-0 z-30 flex items-center gap-2.5 border-b border-[var(--color-border)] bg-[var(--color-surface)]/90 px-4 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] backdrop-blur md:hidden">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)]">
-          <ShieldCheck className="size-4 text-[var(--color-info)]" aria-hidden />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold leading-tight">Painel</p>
-          <p className="truncate text-[11px] leading-tight text-[var(--color-faint)]">
-            Infra &amp; Backups
-          </p>
-        </div>
+        <CabecalhoMarca marca={marca} />
         <ThemeToggle compacto />
       </header>
 

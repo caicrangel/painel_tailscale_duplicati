@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ShieldCheck, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import type { Role } from "@prisma/client";
 import { logoutAction } from "@/server/auth-actions";
 import { ROLE_LABEL } from "@/lib/auth/roles";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { estaAtivo, itensDoPapel, type ContagemAlertas } from "@/components/navegacao";
+import { CabecalhoMarca, type DadosMarca } from "@/components/marca";
 import { cn } from "@/lib/utils/cn";
 
 const CHAVE = "painel.menu-recolhido";
@@ -16,9 +17,11 @@ const CHAVE = "painel.menu-recolhido";
 export function Sidebar({
   user,
   alertas,
+  marca,
 }: {
   user: { name: string; email: string; role: Role };
   alertas: ContagemAlertas;
+  marca: DadosMarca;
 }) {
   const pathname = usePathname();
   const [recolhido, setRecolhido] = useState(false);
@@ -60,15 +63,7 @@ export function Sidebar({
           recolhido && "justify-center px-0",
         )}
       >
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)]">
-          <ShieldCheck className="size-4 text-[var(--color-info)]" />
-        </div>
-        {!recolhido && (
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">Painel</p>
-            <p className="truncate text-[11px] text-[var(--color-faint)]">Infra &amp; Backups</p>
-          </div>
-        )}
+        <CabecalhoMarca marca={marca} compacto={recolhido} />
       </div>
 
       <nav className="flex-1 space-y-0.5 p-2">
