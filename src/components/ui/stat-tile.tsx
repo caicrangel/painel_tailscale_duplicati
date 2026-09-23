@@ -46,7 +46,7 @@ export function StatTile({
   const conteudo = (
     <div
       className={cn(
-        "relative h-full overflow-hidden rounded-xl border bg-[var(--color-surface)] p-4 transition-colors",
+        "relative h-full overflow-hidden rounded-xl border bg-[var(--color-surface)] p-3 transition-colors sm:p-4",
         destaque && Number(value) > 0
           ? "border-[var(--color-border-strong)]"
           : "border-[var(--color-border)]",
@@ -54,14 +54,14 @@ export function StatTile({
       )}
     >
       <span className={cn("absolute inset-y-0 left-0 w-0.5", BARRA[tone])} aria-hidden />
-      <div className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-muted)]">
+      <div className="flex min-w-0 items-center gap-1.5 text-xs font-medium text-[var(--color-muted)]">
         {icon && <span className={ACENTO[tone]}>{icon}</span>}
         {label}
       </div>
-      <p className={cn("mt-2 text-3xl font-semibold tabular-nums tracking-tight", ACENTO[tone])}>
+      <p className={cn("mt-1.5 text-2xl font-semibold tabular-nums tracking-tight sm:mt-2 sm:text-3xl", ACENTO[tone])}>
         {value}
       </p>
-      {hint && <p className="mt-1 text-xs text-[var(--color-faint)]">{hint}</p>}
+      {hint && <p className="mt-1 text-[11px] leading-snug text-[var(--color-faint)] sm:text-xs">{hint}</p>}
     </div>
   );
 

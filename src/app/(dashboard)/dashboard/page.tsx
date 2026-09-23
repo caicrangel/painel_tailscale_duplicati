@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { HeatStrip, HeatStripLegenda } from "@/components/heat-strip";
 import { MountOverview } from "@/components/mount-overview";
 import { Table, Td, Th, Tr, EmptyState } from "@/components/ui/table";
+import { ItemMovel, ListaMovel, SomenteDesktop } from "@/components/ui/lista-movel";
 import { ALERT_SEVERITY, ALERT_TYPE, JOB_STATUS } from "@/lib/utils/status";
 import { fmtDataHora, fmtRelativo } from "@/lib/utils/format";
 import { AutoRefresh } from "@/components/auto-refresh";
@@ -128,7 +129,7 @@ export default async function DashboardPage() {
         <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--color-muted)]">
           Máquinas
         </h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatTile
             label="Online"
             value={resumo.maquinas.online}
@@ -169,7 +170,7 @@ export default async function DashboardPage() {
         <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--color-muted)]">
           Jobs de backup
         </h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatTile
             label="OK"
             value={resumo.jobs.ok}
@@ -209,7 +210,7 @@ export default async function DashboardPage() {
           <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--color-muted)]">
             Pontos de montagem
           </h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatTile
               label="Tudo montado"
               value={montagens.resumo.ok}
@@ -314,38 +315,62 @@ export default async function DashboardPage() {
             />
           ) : (
             <>
-              <Table>
-                <thead>
-                  <tr>
-                    <Th>Job</Th>
-                    <Th>Status</Th>
-                    <Th className="w-px whitespace-nowrap">14 dias</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {jobsCriticos.map((job) => (
-                    <Tr key={job.id}>
-                      <Td className="max-w-[15rem]">
-                        <Link href={`/jobs/${job.id}`} className="block truncate font-medium hover:text-[var(--color-info)]">
-                          {job.name}
-                        </Link>
-                        <p className="truncate text-xs text-[var(--color-faint)]">
-                          {job.machine.displayName ?? job.machine.hostname}
-                          {job.machine.client && ` · ${job.machine.client.name}`}
-                        </p>
-                      </Td>
-                      <Td>
-                        <Badge tone={JOB_STATUS[job.status].tone} dot>
-                          {JOB_STATUS[job.status].label}
-                        </Badge>
-                      </Td>
-                      <Td className="w-px whitespace-nowrap">
-                        <HeatStrip dias={faixas.get(job.id) ?? []} />
-                      </Td>
-                    </Tr>
-                  ))}
-                </tbody>
-              </Table>
+              <ListaMovel>
+                {jobsCriticos.map((job) => (
+                  <ItemMovel
+                    key={job.id}
+                    href={`/jobs/${job.id}`}
+                    titulo={job.name}
+                    subtitulo={
+                      <>
+                        {job.machine.displayName ?? job.machine.hostname}
+                        {job.machine.client && ` · ${job.machine.client.name}`}
+                      </>
+                    }
+                    lateral={
+                      <Badge tone={JOB_STATUS[job.status].tone} dot>
+                        {JOB_STATUS[job.status].label}
+                      </Badge>
+                    }
+                  >
+                    <HeatStrip dias={faixas.get(job.id) ?? []} />
+                  </ItemMovel>
+                ))}
+              </ListaMovel>
+              <SomenteDesktop>
+                <Table>
+                  <thead>
+                    <tr>
+                      <Th>Job</Th>
+                      <Th>Status</Th>
+                      <Th className="w-px whitespace-nowrap">14 dias</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {jobsCriticos.map((job) => (
+                      <Tr key={job.id}>
+                        <Td className="max-w-[15rem]">
+                          <Link href={`/jobs/${job.id}`} className="block truncate font-medium hover:text-[var(--color-info)]">
+                            {job.name}
+                          </Link>
+                          <p className="truncate text-xs text-[var(--color-faint)]">
+                            {job.machine.displayName ?? job.machine.hostname}
+                            {job.machine.client && ` · ${job.machine.client.name}`}
+                          </p>
+                        </Td>
+                        <Td>
+                          <Badge tone={JOB_STATUS[job.status].tone} dot>
+                            {JOB_STATUS[job.status].label}
+                          </Badge>
+                        </Td>
+                        <Td className="w-px whitespace-nowrap">
+                          <HeatStrip dias={faixas.get(job.id) ?? []} />
+                        </Td>
+                      </Tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </SomenteDesktop>
               <div className="border-t border-[var(--color-border)] px-4 py-3">
                 <HeatStripLegenda />
               </div>
