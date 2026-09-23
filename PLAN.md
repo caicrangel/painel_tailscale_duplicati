@@ -187,6 +187,8 @@ imagem a cada request.
   evento, `foreignObject`, entidade ou recurso externo é recusado no upload, e a rota ainda
   responde com CSP `sandbox`.
 - **Nome ao lado do logo** (opcional): desligado, o logotipo ocupa o cabeçalho do menu.
+- **Tamanho do logo**: altura ajustável em separado para o menu (24–72 px, padrão 36) e para
+  o login (40–200 px, padrão 64). No celular a barra do topo limita o logo a 44 px.
 - **Cor de destaque**: substitui o azul de botões, links, item ativo e foco. A cor é
   clareada ou escurecida no mínimo necessário para contraste 4.5:1 em cada tema. As cores de
   status (ok, warning, erro, atrasado) não mudam: carregam significado.

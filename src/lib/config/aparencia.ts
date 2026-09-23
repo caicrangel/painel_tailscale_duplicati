@@ -24,6 +24,12 @@ export type TemaPadrao = "system" | "light" | "dark";
 export const NOME_PADRAO = "Painel";
 export const SUBTITULO_PADRAO = "Infra & Backups";
 
+/** Altura do logo em px. Limites largos, mas que não quebram o menu nem o login. */
+export const TAMANHO_LOGO = {
+  menu: { min: 24, max: 72, padrao: 36 },
+  login: { min: 40, max: 200, padrao: 64 },
+} as const;
+
 const armazenado = z.object({
   nome: z.string().trim().min(1).max(40).catch(NOME_PADRAO),
   subtitulo: z.string().trim().max(60).catch(SUBTITULO_PADRAO),
@@ -31,6 +37,8 @@ const armazenado = z.object({
   temaPadrao: z.enum(["system", "light", "dark"]).catch("system"),
   /** Desligado, o logo (um logotipo com o nome escrito) ocupa o lugar do texto. */
   mostrarNome: z.boolean().catch(true),
+  tamanhoLogoMenu: z.number().int().min(TAMANHO_LOGO.menu.min).max(TAMANHO_LOGO.menu.max).catch(TAMANHO_LOGO.menu.padrao),
+  tamanhoLogoLogin: z.number().int().min(TAMANHO_LOGO.login.min).max(TAMANHO_LOGO.login.max).catch(TAMANHO_LOGO.login.padrao),
   /** Versão (hash curto) de cada logo; nulo = sem logo daquela variante. */
   logos: z
     .object({ claro: z.string().nullable().catch(null), escuro: z.string().nullable().catch(null) })
@@ -48,6 +56,8 @@ export type Aparencia = {
   corDestaque: string | null;
   temaPadrao: TemaPadrao;
   mostrarNome: boolean;
+  tamanhoLogoMenu: number;
+  tamanhoLogoLogin: number;
   /** URL de cada variante, já resolvida: a que falta cai na outra. Nulo = sem logo nenhum. */
   logos: { claro: string; escuro: string } | null;
   /** O que foi de fato enviado, para a tela de configuração. */
@@ -61,6 +71,8 @@ function padrao(): z.infer<typeof armazenado> {
     corDestaque: null,
     temaPadrao: "system",
     mostrarNome: true,
+    tamanhoLogoMenu: TAMANHO_LOGO.menu.padrao,
+    tamanhoLogoLogin: TAMANHO_LOGO.login.padrao,
     logos: { claro: null, escuro: null },
   };
 }
@@ -95,6 +107,8 @@ export const getAparencia = cache(async (): Promise<Aparencia> => {
     corDestaque: a.corDestaque,
     temaPadrao: a.temaPadrao,
     mostrarNome: a.mostrarNome,
+    tamanhoLogoMenu: a.tamanhoLogoMenu,
+    tamanhoLogoLogin: a.tamanhoLogoLogin,
     logos: claro && escuro ? { claro, escuro } : null,
     logosEnviados: { claro: a.logos.claro !== null, escuro: a.logos.escuro !== null },
   };
@@ -113,6 +127,8 @@ export async function salvarAparencia(input: {
   corDestaque: string | null;
   temaPadrao: TemaPadrao;
   mostrarNome: boolean;
+  tamanhoLogoMenu: number;
+  tamanhoLogoLogin: number;
   /** Por variante: arquivo novo, "remover", ou ausente para manter. */
   logos: Partial<Record<VarianteLogo, { tipo: TipoLogo; bytes: Uint8Array } | "remover">>;
 }): Promise<void> {
@@ -147,6 +163,8 @@ export async function salvarAparencia(input: {
       corDestaque: input.corDestaque,
       temaPadrao: input.temaPadrao,
       mostrarNome: input.mostrarNome,
+      tamanhoLogoMenu: input.tamanhoLogoMenu,
+      tamanhoLogoLogin: input.tamanhoLogoLogin,
       logos: versoes,
     };
     await tx.setting.upsert({

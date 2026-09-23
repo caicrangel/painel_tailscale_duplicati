@@ -18,6 +18,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     subtitulo: aparencia.subtitulo,
     logos: aparencia.logos,
     mostrarNome: aparencia.mostrarNome,
+    tamanhoLogo: aparencia.tamanhoLogoMenu,
   };
 
   return (

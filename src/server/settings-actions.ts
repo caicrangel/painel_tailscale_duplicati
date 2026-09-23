@@ -18,7 +18,7 @@ import { invalidateSettingsCache, setSetting, type AppSettings } from "@/lib/con
 import { enviarTelegram, formatarTeste } from "@/lib/alerts/telegram";
 import { enviarEmail, escaparHtmlEmail, montarHtml } from "@/lib/alerts/email";
 import { enviarResumoAgora } from "@/lib/alerts/resumo-envio";
-import { salvarAparencia as salvarAparenciaConfig, VARIANTES_LOGO } from "@/lib/config/aparencia";
+import { salvarAparencia as salvarAparenciaConfig, TAMANHO_LOGO, VARIANTES_LOGO } from "@/lib/config/aparencia";
 import { validarLogo } from "@/lib/aparencia/logo";
 import { hexValido } from "@/lib/aparencia/paleta";
 
@@ -328,6 +328,16 @@ const aparenciaForm = z.object({
     .toLowerCase()
     .refine((v) => v === "" || hexValido(v), "Cor inválida. Use o formato #RRGGBB."),
   temaPadrao: z.enum(["system", "light", "dark"]),
+  tamanhoLogoMenu: z.coerce
+    .number()
+    .int()
+    .min(TAMANHO_LOGO.menu.min, "Tamanho do logo no menu fora do limite.")
+    .max(TAMANHO_LOGO.menu.max, "Tamanho do logo no menu fora do limite."),
+  tamanhoLogoLogin: z.coerce
+    .number()
+    .int()
+    .min(TAMANHO_LOGO.login.min, "Tamanho do logo no login fora do limite.")
+    .max(TAMANHO_LOGO.login.max, "Tamanho do logo no login fora do limite."),
 });
 
 export async function salvarAparencia(formData: FormData): Promise<ActionResult> {
@@ -339,6 +349,8 @@ export async function salvarAparencia(formData: FormData): Promise<ActionResult>
     subtitulo: formData.get("subtitulo") ?? "",
     corDestaque: formData.get("usarCorPadrao") === "on" ? "" : (formData.get("corDestaque") ?? ""),
     temaPadrao: formData.get("temaPadrao") ?? "system",
+    tamanhoLogoMenu: formData.get("tamanhoLogoMenu") ?? TAMANHO_LOGO.menu.padrao,
+    tamanhoLogoLogin: formData.get("tamanhoLogoLogin") ?? TAMANHO_LOGO.login.padrao,
   });
   if (!campos.success) return { ok: false, error: primeiroErro(campos.error) };
 
@@ -364,6 +376,8 @@ export async function salvarAparencia(formData: FormData): Promise<ActionResult>
     corDestaque: campos.data.corDestaque === "" ? null : campos.data.corDestaque,
     temaPadrao: campos.data.temaPadrao,
     mostrarNome: formData.get("mostrarNome") === "on",
+    tamanhoLogoMenu: campos.data.tamanhoLogoMenu,
+    tamanhoLogoLogin: campos.data.tamanhoLogoLogin,
     logos,
   });
 
@@ -376,6 +390,8 @@ export async function salvarAparencia(formData: FormData): Promise<ActionResult>
       nome: campos.data.nome,
       corDestaque: campos.data.corDestaque || null,
       temaPadrao: campos.data.temaPadrao,
+      tamanhoLogoMenu: campos.data.tamanhoLogoMenu,
+      tamanhoLogoLogin: campos.data.tamanhoLogoLogin,
       logos: Object.fromEntries(
         Object.entries(logos).map(([v, m]) => [v, m === "remover" ? "removido" : "enviado"]),
       ),

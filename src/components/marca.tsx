@@ -7,6 +7,8 @@ export type DadosMarca = {
   logos: { claro: string; escuro: string } | null;
   /** Falso: o logo é um logotipo completo e ocupa o lugar do nome. */
   mostrarNome: boolean;
+  /** Altura do logo no menu, em px. */
+  tamanhoLogo: number;
 };
 
 /**
@@ -16,7 +18,15 @@ export type DadosMarca = {
  * A imagem acompanha a altura do contêiner e mantém a proporção — um logotipo
  * largo não é espremido num quadrado.
  */
-export function LogoMarca({ marca, className }: { marca: DadosMarca; className?: string }) {
+export function LogoMarca({
+  marca,
+  className,
+  style,
+}: {
+  marca: DadosMarca;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
   if (!marca.logos) {
     return (
       <div
@@ -24,6 +34,7 @@ export function LogoMarca({ marca, className }: { marca: DadosMarca; className?:
           "flex aspect-square shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)]",
           className,
         )}
+        style={style}
       >
         <ShieldCheck className="size-1/2 text-[var(--color-info)]" aria-hidden />
       </div>
@@ -31,7 +42,7 @@ export function LogoMarca({ marca, className }: { marca: DadosMarca; className?:
   }
 
   return (
-    <div className={cn("flex shrink-0 items-center", className)}>
+    <div className={cn("flex shrink-0 items-center", className)} style={style}>
       {/* eslint-disable-next-line @next/next/no-img-element -- rota própria, já com cache eterno; o otimizador do Next não agrega */}
       <img src={marca.logos.escuro} alt="" className="logo-tema-escuro h-full w-auto max-w-full object-contain object-left" />
       {/* eslint-disable-next-line @next/next/no-img-element -- idem */}
@@ -44,7 +55,16 @@ export function LogoMarca({ marca, className }: { marca: DadosMarca; className?:
  * Cabeçalho de marca do menu (lateral e celular): logo + nome, ou só o
  * logotipo quando o administrador desligou o nome.
  */
-export function CabecalhoMarca({ marca, compacto = false }: { marca: DadosMarca; compacto?: boolean }) {
+export function CabecalhoMarca({
+  marca,
+  compacto = false,
+  alturaMaxima,
+}: {
+  marca: DadosMarca;
+  compacto?: boolean;
+  /** Teto para onde o espaço é fixo, como a barra do topo no celular. */
+  alturaMaxima?: number;
+}) {
   const soLogo = marca.logos !== null && !marca.mostrarNome;
 
   if (compacto) {
@@ -56,10 +76,14 @@ export function CabecalhoMarca({ marca, compacto = false }: { marca: DadosMarca;
     );
   }
 
+  // Altura escolhida em Configurações › Aparência. Só o logo: pode usar toda a
+  // largura do cabeçalho. Ao lado do nome: até ~2,5× a altura, para o texto caber.
+  const altura = marca.logos ? Math.min(marca.tamanhoLogo, alturaMaxima ?? Infinity) : 32;
+
   if (soLogo) {
     return (
       <div className="min-w-0 flex-1">
-        <LogoMarca marca={marca} className="h-9 max-w-[11rem]" />
+        <LogoMarca marca={marca} className="max-w-full" style={{ height: altura }} />
         <span className="sr-only">{marca.nome}</span>
       </div>
     );
@@ -67,7 +91,7 @@ export function CabecalhoMarca({ marca, compacto = false }: { marca: DadosMarca;
 
   return (
     <>
-      <LogoMarca marca={marca} className="h-8 max-w-[4.5rem]" />
+      <LogoMarca marca={marca} style={{ height: altura, maxWidth: Math.round(altura * 2.5) }} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold leading-tight">{marca.nome}</p>
         {marca.subtitulo && (

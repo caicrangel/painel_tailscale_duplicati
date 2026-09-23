@@ -15,8 +15,15 @@ export default async function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <LogoMarca
-            marca={{ nome: a.nome, subtitulo: a.subtitulo, logos: a.logos, mostrarNome: a.mostrarNome }}
-            className={a.logos ? "h-14 max-w-60 justify-center" : "size-11 rounded-xl"}
+            marca={{
+              nome: a.nome,
+              subtitulo: a.subtitulo,
+              logos: a.logos,
+              mostrarNome: a.mostrarNome,
+              tamanhoLogo: a.tamanhoLogoLogin,
+            }}
+            className={a.logos ? "max-w-full justify-center" : "size-11 rounded-xl"}
+            style={a.logos ? { height: a.tamanhoLogoLogin } : undefined}
           />
           <div>
             <h1 className={a.logos && !a.mostrarNome ? "sr-only" : "text-lg font-semibold"}>{a.nome}</h1>

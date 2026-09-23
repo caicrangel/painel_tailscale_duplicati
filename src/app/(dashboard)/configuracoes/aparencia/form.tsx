@@ -9,6 +9,13 @@ import { Button } from "@/components/ui/button";
 import { salvarAparencia } from "@/server/settings-actions";
 import { derivarPaleta, hexValido } from "@/lib/aparencia/paleta";
 import { TAMANHO_MAXIMO_LOGO } from "@/lib/aparencia/logo";
+
+// Espelho de TAMANHO_LOGO (lib/config/aparencia, que só roda no servidor).
+// O servidor revalida os limites; aqui é só o alcance do controle.
+const LIMITES = {
+  menu: { min: 24, max: 72, padrao: 36 },
+  login: { min: 40, max: 200, padrao: 64 },
+} as const;
 import { cn } from "@/lib/utils/cn";
 
 type Tema = "system" | "light" | "dark";
@@ -42,6 +49,8 @@ export function AparenciaForm(props: {
   corDestaque: string | null;
   temaPadrao: Tema;
   mostrarNome: boolean;
+  tamanhoLogoMenu: number;
+  tamanhoLogoLogin: number;
   logos: { claro: string | null; escuro: string | null };
 }) {
   const [nome, setNome] = useState(props.nome);
@@ -51,6 +60,8 @@ export function AparenciaForm(props: {
   const [hexDigitado, setHexDigitado] = useState(props.corDestaque ?? COR_ORIGINAL);
   const [tema, setTema] = useState<Tema>(props.temaPadrao);
   const [mostrarNome, setMostrarNome] = useState(props.mostrarNome);
+  const [tamanhoMenu, setTamanhoMenu] = useState(props.tamanhoLogoMenu);
+  const [tamanhoLogin, setTamanhoLogin] = useState(props.tamanhoLogoLogin);
   const [logos, setLogos] = useState(props.logos);
   const [removidos, setRemovidos] = useState<Record<Variante, boolean>>({ claro: false, escuro: false });
 
@@ -116,6 +127,23 @@ export function AparenciaForm(props: {
                   </span>
                 </span>
               </label>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <ControleTamanho
+                  nome="tamanhoLogoMenu"
+                  rotulo="Tamanho no menu"
+                  valor={tamanhoMenu}
+                  limites={LIMITES.menu}
+                  aoMudar={setTamanhoMenu}
+                  dica="No celular a barra do topo limita o logo a 44px."
+                />
+                <ControleTamanho
+                  nome="tamanhoLogoLogin"
+                  rotulo="Tamanho na tela de login"
+                  valor={tamanhoLogin}
+                  limites={LIMITES.login}
+                  aoMudar={setTamanhoLogin}
+                />
+              </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 {(["claro", "escuro"] as const).map((v) => (
                   <SlotLogo
@@ -275,10 +303,19 @@ export function AparenciaForm(props: {
                   subtitulo={subtitulo}
                   logo={logoDoTema(v)}
                   mostrarNome={mostrarNome}
+                  tamanho={tamanhoMenu}
                   destaque={paleta[v].destaque}
                   fundo={paleta[v].fundo}
                 />
               ))}
+              <PreviaLogin
+                logo={logoDoTema("claro")}
+                nome={nome || "Painel"}
+                subtitulo={subtitulo}
+                mostrarNome={mostrarNome}
+                tamanho={tamanhoLogin}
+                destaque={paleta.claro.destaque}
+              />
               <p className="text-xs text-[var(--color-faint)]">
                 Só muda para todos depois de salvar.
               </p>
@@ -386,6 +423,7 @@ function Previa({
   subtitulo,
   logo,
   mostrarNome,
+  tamanho,
   destaque,
   fundo,
 }: {
@@ -394,6 +432,7 @@ function Previa({
   subtitulo: string;
   logo: string | null;
   mostrarNome: boolean;
+  tamanho: number;
   destaque: string;
   fundo: string;
 }) {
@@ -403,7 +442,10 @@ function Previa({
       <div className="flex items-center gap-2.5 border-b px-3 py-2.5" style={{ backgroundColor: t.surface, borderColor: t.border }}>
         {logo ? (
           // Mesmas medidas do menu de verdade (CabecalhoMarca).
-          <div className={cn("flex h-8 shrink-0 items-center", mostrarNome ? "max-w-[4.5rem]" : "h-9 max-w-[11rem]")}>
+          <div
+            className="flex shrink-0 items-center"
+            style={{ height: tamanho, maxWidth: mostrarNome ? Math.round(tamanho * 2.5) : "100%" }}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element -- pré-visualização */}
             <img src={logo} alt="" className="h-full w-auto max-w-full object-contain object-left" />
           </div>
@@ -436,6 +478,97 @@ function Previa({
           Salvar
         </span>
       </div>
+    </div>
+  );
+}
+
+function ControleTamanho({
+  nome,
+  rotulo,
+  valor,
+  limites,
+  aoMudar,
+  dica,
+}: {
+  nome: string;
+  rotulo: string;
+  valor: number;
+  limites: { min: number; max: number; padrao: number };
+  aoMudar: (v: number) => void;
+  dica?: string;
+}) {
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center justify-between">
+        <label htmlFor={nome} className="text-xs font-medium text-[var(--color-muted)]">
+          {rotulo}
+        </label>
+        <span className="flex items-center gap-2 text-xs tabular-nums text-[var(--color-muted)]">
+          {valor}px
+          {valor !== limites.padrao && (
+            <button
+              type="button"
+              onClick={() => aoMudar(limites.padrao)}
+              className="text-[var(--color-info)] hover:underline"
+            >
+              padrão
+            </button>
+          )}
+        </span>
+      </div>
+      <input
+        id={nome}
+        name={nome}
+        type="range"
+        min={limites.min}
+        max={limites.max}
+        step={2}
+        value={valor}
+        onChange={(e) => aoMudar(Number(e.target.value))}
+        className="w-full accent-[var(--color-info)]"
+      />
+      {dica && <p className="mt-1 text-[11px] text-[var(--color-faint)]">{dica}</p>}
+    </div>
+  );
+}
+
+/** Topo da tela de login no tamanho real, para calibrar o controle. */
+function PreviaLogin({
+  logo,
+  nome,
+  subtitulo,
+  mostrarNome,
+  tamanho,
+  destaque,
+}: {
+  logo: string | null;
+  nome: string;
+  subtitulo: string;
+  mostrarNome: boolean;
+  tamanho: number;
+  destaque: string;
+}) {
+  const t = TEMA.claro;
+  return (
+    <div
+      className="flex flex-col items-center gap-2 rounded-lg border px-4 py-5 text-center"
+      style={{ backgroundColor: t.bg, borderColor: t.border, color: t.fg }}
+    >
+      <span className="self-start text-[10px] uppercase tracking-wide" style={{ color: t.muted }}>
+        login
+      </span>
+      {logo ? (
+        // eslint-disable-next-line @next/next/no-img-element -- pré-visualização
+        <img src={logo} alt="" className="w-auto max-w-full object-contain" style={{ height: tamanho }} />
+      ) : (
+        <ShieldCheck className="size-8" style={{ color: destaque }} aria-hidden />
+      )}
+      {(mostrarNome || !logo) && (
+        <div>
+          <p className="text-sm font-semibold">{nome}</p>
+          {subtitulo && <p className="text-xs" style={{ color: t.muted }}>{subtitulo}</p>}
+        </div>
+      )}
     </div>
   );
 }
