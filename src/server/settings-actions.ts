@@ -18,7 +18,12 @@ import { invalidateSettingsCache, setSetting, type AppSettings } from "@/lib/con
 import { enviarTelegram, formatarTeste } from "@/lib/alerts/telegram";
 import { enviarEmail, escaparHtmlEmail, montarHtml } from "@/lib/alerts/email";
 import { enviarResumoAgora } from "@/lib/alerts/resumo-envio";
-import { salvarAparencia as salvarAparenciaConfig, TAMANHO_LOGO, VARIANTES_LOGO } from "@/lib/config/aparencia";
+import {
+  ALINHAMENTOS_LOGO,
+  salvarAparencia as salvarAparenciaConfig,
+  TAMANHO_LOGO,
+  VARIANTES_LOGO,
+} from "@/lib/config/aparencia";
 import { validarLogo } from "@/lib/aparencia/logo";
 import { hexValido } from "@/lib/aparencia/paleta";
 
@@ -320,7 +325,7 @@ export async function ultimosCiclos() {
 // ─── Aparência ───────────────────────────────────────────────────────────────
 
 const aparenciaForm = z.object({
-  nome: z.string().trim().min(1, "Informe o nome do painel.").max(40, "Nome com no máximo 40 caracteres."),
+  nome: z.string().trim().max(40, "Nome com no máximo 40 caracteres."),
   subtitulo: z.string().trim().max(60, "Subtítulo com no máximo 60 caracteres."),
   corDestaque: z
     .string()
@@ -338,6 +343,7 @@ const aparenciaForm = z.object({
     .int()
     .min(TAMANHO_LOGO.login.min, "Tamanho do logo no login fora do limite.")
     .max(TAMANHO_LOGO.login.max, "Tamanho do logo no login fora do limite."),
+  alinhamentoLogo: z.enum(ALINHAMENTOS_LOGO),
 });
 
 export async function salvarAparencia(formData: FormData): Promise<ActionResult> {
@@ -351,6 +357,7 @@ export async function salvarAparencia(formData: FormData): Promise<ActionResult>
     temaPadrao: formData.get("temaPadrao") ?? "system",
     tamanhoLogoMenu: formData.get("tamanhoLogoMenu") ?? TAMANHO_LOGO.menu.padrao,
     tamanhoLogoLogin: formData.get("tamanhoLogoLogin") ?? TAMANHO_LOGO.login.padrao,
+    alinhamentoLogo: formData.get("alinhamentoLogo") ?? "esquerda",
   });
   if (!campos.success) return { ok: false, error: primeiroErro(campos.error) };
 
@@ -378,6 +385,7 @@ export async function salvarAparencia(formData: FormData): Promise<ActionResult>
     mostrarNome: formData.get("mostrarNome") === "on",
     tamanhoLogoMenu: campos.data.tamanhoLogoMenu,
     tamanhoLogoLogin: campos.data.tamanhoLogoLogin,
+    alinhamentoLogo: campos.data.alinhamentoLogo,
     logos,
   });
 

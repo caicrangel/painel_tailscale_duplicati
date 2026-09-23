@@ -26,7 +26,9 @@ export default async function LoginPage() {
             style={a.logos ? { height: a.tamanhoLogoLogin } : undefined}
           />
           <div>
-            <h1 className={a.logos && !a.mostrarNome ? "sr-only" : "text-lg font-semibold"}>{a.nome}</h1>
+            <h1 className={(a.logos && !a.mostrarNome) || !a.nome ? "sr-only" : "text-lg font-semibold"}>
+              {a.nome || "Painel"}
+            </h1>
             {a.subtitulo && <p className="mt-1 text-sm text-[var(--color-muted)]">{a.subtitulo}</p>}
           </div>
         </div>

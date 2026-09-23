@@ -18,6 +18,7 @@ export default async function AparenciaPage() {
       mostrarNome={a.mostrarNome}
       tamanhoLogoMenu={a.tamanhoLogoMenu}
       tamanhoLogoLogin={a.tamanhoLogoLogin}
+      alinhamentoLogo={a.alinhamentoLogo}
       logos={{
         claro: a.logosEnviados.claro ? (a.logos?.claro ?? null) : null,
         escuro: a.logosEnviados.escuro ? (a.logos?.escuro ?? null) : null,

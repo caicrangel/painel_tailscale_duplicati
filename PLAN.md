@@ -135,6 +135,9 @@ continuarem atrasados ganham seus alertas individuais.
 Recuperação: ao detectar que a condição sumiu, fecha o alerta (`closedAt`) e manda uma
 mensagem de resolução no Telegram, referenciando o incidente.
 
+Selo do menu: conta só os alertas abertos **sem ciência** — quem reconheceu já sabe. O
+incidente continua no dashboard e em Alertas até a condição sumir.
+
 Envio: fila simples em `AlertNotification` (pending → sent/failed) com retry. Se o Telegram
 estiver fora, o alerta continua registrado na UI — a UI é a fonte da verdade, o Telegram é
 notificação best-effort.
@@ -189,6 +192,9 @@ imagem a cada request.
 - **Nome ao lado do logo** (opcional): desligado, o logotipo ocupa o cabeçalho do menu.
 - **Tamanho do logo**: altura ajustável em separado para o menu (24–72 px, padrão 36) e para
   o login (40–200 px, padrão 64). No celular a barra do topo limita o logo a 44 px.
+- **Posição do logo no menu**: esquerda, centro ou direita.
+- **Nome e subtítulo** podem ficar em branco (logo com o nome escrito dispensa o texto); a
+  aba do navegador mostra então só o nome da página.
 - **Cor de destaque**: substitui o azul de botões, links, item ativo e foco. A cor é
   clareada ou escurecida no mínimo necessário para contraste 4.5:1 em cada tema. As cores de
   status (ok, warning, erro, atrasado) não mudam: carregam significado.

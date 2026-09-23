@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ImagePlus, Monitor, Moon, ShieldCheck, Sun, Trash2 } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, ImagePlus, Monitor, Moon, ShieldCheck, Sun, Trash2 } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/input";
@@ -20,6 +20,8 @@ import { cn } from "@/lib/utils/cn";
 
 type Tema = "system" | "light" | "dark";
 type Variante = "claro" | "escuro";
+type Alinhamento = "esquerda" | "centro" | "direita";
+const JUSTIFICAR = { esquerda: "justify-start", centro: "justify-center", direita: "justify-end" } as const;
 
 /** Azul original do painel: é o que vale quando nenhuma cor é escolhida. */
 const COR_ORIGINAL = "#0969da";
@@ -51,6 +53,7 @@ export function AparenciaForm(props: {
   mostrarNome: boolean;
   tamanhoLogoMenu: number;
   tamanhoLogoLogin: number;
+  alinhamentoLogo: Alinhamento;
   logos: { claro: string | null; escuro: string | null };
 }) {
   const [nome, setNome] = useState(props.nome);
@@ -62,6 +65,7 @@ export function AparenciaForm(props: {
   const [mostrarNome, setMostrarNome] = useState(props.mostrarNome);
   const [tamanhoMenu, setTamanhoMenu] = useState(props.tamanhoLogoMenu);
   const [tamanhoLogin, setTamanhoLogin] = useState(props.tamanhoLogoLogin);
+  const [alinhamento, setAlinhamento] = useState<Alinhamento>(props.alinhamentoLogo);
   const [logos, setLogos] = useState(props.logos);
   const [removidos, setRemovidos] = useState<Record<Variante, boolean>>({ claro: false, escuro: false });
 
@@ -92,8 +96,8 @@ export function AparenciaForm(props: {
               <CardTitle>Identidade</CardTitle>
             </CardHeader>
             <CardBody className="grid gap-4 sm:grid-cols-2">
-              <Field label="Nome do painel" hint="Aparece no menu, no login e na aba do navegador.">
-                <Input name="nome" value={nome} maxLength={40} required onChange={(e) => setNome(e.target.value)} />
+              <Field label="Nome do painel" hint="Aparece no menu, no login e na aba do navegador. Pode ficar vazio.">
+                <Input name="nome" value={nome} maxLength={40} onChange={(e) => setNome(e.target.value)} />
               </Field>
               <Field label="Subtítulo" hint="Linha menor embaixo do nome. Pode ficar vazio.">
                 <Input name="subtitulo" value={subtitulo} maxLength={60} onChange={(e) => setSubtitulo(e.target.value)} />
@@ -136,6 +140,36 @@ export function AparenciaForm(props: {
                   aoMudar={setTamanhoMenu}
                   dica="No celular a barra do topo limita o logo a 44px."
                 />
+                <div className="sm:col-span-2">
+                  <p className="mb-1.5 text-xs font-medium text-[var(--color-muted)]">Posição no menu</p>
+                  <div role="radiogroup" aria-label="Posição do logo no menu" className="inline-flex rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] p-0.5">
+                    {(
+                      [
+                        { valor: "esquerda", label: "Esquerda", Icone: AlignLeft },
+                        { valor: "centro", label: "Centro", Icone: AlignCenter },
+                        { valor: "direita", label: "Direita", Icone: AlignRight },
+                      ] as const
+                    ).map(({ valor, label, Icone }) => (
+                      <button
+                        key={valor}
+                        type="button"
+                        role="radio"
+                        aria-checked={alinhamento === valor}
+                        onClick={() => setAlinhamento(valor)}
+                        className={cn(
+                          "flex items-center gap-1.5 rounded px-3 py-1.5 text-xs transition-colors",
+                          alinhamento === valor
+                            ? "bg-[var(--color-surface)] font-medium text-[var(--color-fg)] shadow-sm"
+                            : "text-[var(--color-muted)] hover:text-[var(--color-fg)]",
+                        )}
+                      >
+                        <Icone className="size-3.5" aria-hidden />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <input type="hidden" name="alinhamentoLogo" value={alinhamento} />
+                </div>
                 <ControleTamanho
                   nome="tamanhoLogoLogin"
                   rotulo="Tamanho na tela de login"
@@ -299,18 +333,19 @@ export function AparenciaForm(props: {
                 <Previa
                   key={v}
                   variante={v}
-                  nome={nome || "Painel"}
+                  nome={nome}
                   subtitulo={subtitulo}
                   logo={logoDoTema(v)}
                   mostrarNome={mostrarNome}
                   tamanho={tamanhoMenu}
+                  alinhamento={alinhamento}
                   destaque={paleta[v].destaque}
                   fundo={paleta[v].fundo}
                 />
               ))}
               <PreviaLogin
                 logo={logoDoTema("claro")}
-                nome={nome || "Painel"}
+                nome={nome}
                 subtitulo={subtitulo}
                 mostrarNome={mostrarNome}
                 tamanho={tamanhoLogin}
@@ -424,6 +459,7 @@ function Previa({
   logo,
   mostrarNome,
   tamanho,
+  alinhamento,
   destaque,
   fundo,
 }: {
@@ -433,6 +469,7 @@ function Previa({
   logo: string | null;
   mostrarNome: boolean;
   tamanho: number;
+  alinhamento: Alinhamento;
   destaque: string;
   fundo: string;
 }) {
@@ -440,6 +477,7 @@ function Previa({
   return (
     <div className="overflow-hidden rounded-lg border" style={{ backgroundColor: t.bg, borderColor: t.border, color: t.fg }}>
       <div className="flex items-center gap-2.5 border-b px-3 py-2.5" style={{ backgroundColor: t.surface, borderColor: t.border }}>
+        <div className={cn("flex min-w-0 flex-1 items-center gap-2.5", JUSTIFICAR[alinhamento])}>
         {logo ? (
           // Mesmas medidas do menu de verdade (CabecalhoMarca).
           <div
@@ -457,13 +495,14 @@ function Previa({
             <ShieldCheck className="size-4" style={{ color: destaque }} />
           </div>
         )}
-        {(mostrarNome || !logo) && (
+        {(mostrarNome || !logo) && (nome || subtitulo) && (
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{nome}</p>
+            {nome && <p className="truncate text-sm font-semibold">{nome}</p>}
             {subtitulo && <p className="truncate text-[11px]" style={{ color: t.muted }}>{subtitulo}</p>}
           </div>
         )}
-        <span className="ml-auto text-[10px] uppercase tracking-wide" style={{ color: t.muted }}>
+        </div>
+        <span className="shrink-0 text-[10px] uppercase tracking-wide" style={{ color: t.muted }}>
           {variante}
         </span>
       </div>
@@ -563,9 +602,9 @@ function PreviaLogin({
       ) : (
         <ShieldCheck className="size-8" style={{ color: destaque }} aria-hidden />
       )}
-      {(mostrarNome || !logo) && (
+      {(mostrarNome || !logo) && (nome || subtitulo) && (
         <div>
-          <p className="text-sm font-semibold">{nome}</p>
+          {nome && <p className="text-sm font-semibold">{nome}</p>}
           {subtitulo && <p className="text-xs" style={{ color: t.muted }}>{subtitulo}</p>}
         </div>
       )}

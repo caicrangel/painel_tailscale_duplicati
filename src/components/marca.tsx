@@ -9,7 +9,11 @@ export type DadosMarca = {
   mostrarNome: boolean;
   /** Altura do logo no menu, em px. */
   tamanhoLogo: number;
+  /** Posição do logo (e do nome, quando houver) no cabeçalho do menu. */
+  alinhamento?: "esquerda" | "centro" | "direita";
 };
+
+const JUSTIFICAR = { esquerda: "justify-start", centro: "justify-center", direita: "justify-end" } as const;
 
 /**
  * Logo do painel. Com logo por tema, as duas imagens vão para a página e o CSS
@@ -65,13 +69,17 @@ export function CabecalhoMarca({
   /** Teto para onde o espaço é fixo, como a barra do topo no celular. */
   alturaMaxima?: number;
 }) {
-  const soLogo = marca.logos !== null && !marca.mostrarNome;
+  // Sem nome e sem subtítulo não há texto para mostrar: o logo ocupa o espaço.
+  const semTexto = !marca.nome && !marca.subtitulo;
+  const soLogo = marca.logos !== null && (!marca.mostrarNome || semTexto);
+  // Leitor de tela sempre recebe um nome, mesmo com o campo em branco.
+  const nomeAcessivel = marca.nome || "Painel";
 
   if (compacto) {
     return (
       <>
         <LogoMarca marca={marca} className="h-8 max-w-10" />
-        <span className="sr-only">{marca.nome}</span>
+        <span className="sr-only">{nomeAcessivel}</span>
       </>
     );
   }
@@ -80,24 +88,31 @@ export function CabecalhoMarca({
   // largura do cabeçalho. Ao lado do nome: até ~2,5× a altura, para o texto caber.
   const altura = marca.logos ? Math.min(marca.tamanhoLogo, alturaMaxima ?? Infinity) : 32;
 
+  const justificar = JUSTIFICAR[marca.alinhamento ?? "esquerda"];
+
   if (soLogo) {
     return (
-      <div className="min-w-0 flex-1">
+      <div className={cn("flex min-w-0 flex-1", justificar)}>
         <LogoMarca marca={marca} className="max-w-full" style={{ height: altura }} />
-        <span className="sr-only">{marca.nome}</span>
+        <span className="sr-only">{nomeAcessivel}</span>
       </div>
     );
   }
 
+  // Logo + nome andam juntos: o alinhamento move o conjunto.
   return (
-    <>
+    <div className={cn("flex min-w-0 flex-1 items-center gap-2.5", justificar)}>
       <LogoMarca marca={marca} style={{ height: altura, maxWidth: Math.round(altura * 2.5) }} />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold leading-tight">{marca.nome}</p>
+      <div className="min-w-0">
+        {marca.nome ? (
+          <p className="truncate text-sm font-semibold leading-tight">{marca.nome}</p>
+        ) : (
+          <span className="sr-only">{nomeAcessivel}</span>
+        )}
         {marca.subtitulo && (
           <p className="truncate text-[11px] leading-tight text-[var(--color-faint)]">{marca.subtitulo}</p>
         )}
       </div>
-    </>
+    </div>
   );
 }

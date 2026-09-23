@@ -8,7 +8,8 @@ import { cssDaPaleta, derivarPaleta } from "@/lib/aparencia/paleta";
 export async function generateMetadata(): Promise<Metadata> {
   const a = await getAparencia();
   return {
-    title: { default: a.nome, template: `%s · ${a.nome}` },
+    // Nome em branco: a aba mostra só o nome da página.
+    title: a.nome ? { default: a.nome, template: `%s · ${a.nome}` } : { default: "Painel", template: "%s" },
     description: "Monitoramento centralizado de infraestrutura e backups",
     // A aba do navegador segue o tema do sistema operacional, não o do painel:
     // é o `prefers-color-scheme` que decide qual logo aparece nela.

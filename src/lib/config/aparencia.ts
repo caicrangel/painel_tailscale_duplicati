@@ -20,6 +20,8 @@ const chaveLogo = (v: VarianteLogo) => `aparencia.logo.${v}`;
 export const VARIANTES_LOGO = ["claro", "escuro"] as const;
 export type VarianteLogo = (typeof VARIANTES_LOGO)[number];
 export type TemaPadrao = "system" | "light" | "dark";
+export const ALINHAMENTOS_LOGO = ["esquerda", "centro", "direita"] as const;
+export type AlinhamentoLogo = (typeof ALINHAMENTOS_LOGO)[number];
 
 export const NOME_PADRAO = "Painel";
 export const SUBTITULO_PADRAO = "Infra & Backups";
@@ -31,13 +33,15 @@ export const TAMANHO_LOGO = {
 } as const;
 
 const armazenado = z.object({
-  nome: z.string().trim().min(1).max(40).catch(NOME_PADRAO),
+  /** Vazio é válido: quem tem o nome no logo pode dispensar o texto. */
+  nome: z.string().trim().max(40).catch(NOME_PADRAO),
   subtitulo: z.string().trim().max(60).catch(SUBTITULO_PADRAO),
   corDestaque: z.string().regex(/^#[0-9a-f]{6}$/).nullable().catch(null),
   temaPadrao: z.enum(["system", "light", "dark"]).catch("system"),
   /** Desligado, o logo (um logotipo com o nome escrito) ocupa o lugar do texto. */
   mostrarNome: z.boolean().catch(true),
   tamanhoLogoMenu: z.number().int().min(TAMANHO_LOGO.menu.min).max(TAMANHO_LOGO.menu.max).catch(TAMANHO_LOGO.menu.padrao),
+  alinhamentoLogo: z.enum(ALINHAMENTOS_LOGO).catch("esquerda"),
   tamanhoLogoLogin: z.number().int().min(TAMANHO_LOGO.login.min).max(TAMANHO_LOGO.login.max).catch(TAMANHO_LOGO.login.padrao),
   /** Versão (hash curto) de cada logo; nulo = sem logo daquela variante. */
   logos: z
@@ -58,6 +62,8 @@ export type Aparencia = {
   mostrarNome: boolean;
   tamanhoLogoMenu: number;
   tamanhoLogoLogin: number;
+  /** Posição do logo no cabeçalho do menu. */
+  alinhamentoLogo: AlinhamentoLogo;
   /** URL de cada variante, já resolvida: a que falta cai na outra. Nulo = sem logo nenhum. */
   logos: { claro: string; escuro: string } | null;
   /** O que foi de fato enviado, para a tela de configuração. */
@@ -73,6 +79,7 @@ function padrao(): z.infer<typeof armazenado> {
     mostrarNome: true,
     tamanhoLogoMenu: TAMANHO_LOGO.menu.padrao,
     tamanhoLogoLogin: TAMANHO_LOGO.login.padrao,
+    alinhamentoLogo: "esquerda",
     logos: { claro: null, escuro: null },
   };
 }
@@ -109,6 +116,7 @@ export const getAparencia = cache(async (): Promise<Aparencia> => {
     mostrarNome: a.mostrarNome,
     tamanhoLogoMenu: a.tamanhoLogoMenu,
     tamanhoLogoLogin: a.tamanhoLogoLogin,
+    alinhamentoLogo: a.alinhamentoLogo,
     logos: claro && escuro ? { claro, escuro } : null,
     logosEnviados: { claro: a.logos.claro !== null, escuro: a.logos.escuro !== null },
   };
@@ -129,6 +137,7 @@ export async function salvarAparencia(input: {
   mostrarNome: boolean;
   tamanhoLogoMenu: number;
   tamanhoLogoLogin: number;
+  alinhamentoLogo: AlinhamentoLogo;
   /** Por variante: arquivo novo, "remover", ou ausente para manter. */
   logos: Partial<Record<VarianteLogo, { tipo: TipoLogo; bytes: Uint8Array } | "remover">>;
 }): Promise<void> {
@@ -165,6 +174,7 @@ export async function salvarAparencia(input: {
       mostrarNome: input.mostrarNome,
       tamanhoLogoMenu: input.tamanhoLogoMenu,
       tamanhoLogoLogin: input.tamanhoLogoLogin,
+      alinhamentoLogo: input.alinhamentoLogo,
       logos: versoes,
     };
     await tx.setting.upsert({
