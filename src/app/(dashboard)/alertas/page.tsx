@@ -15,6 +15,11 @@ import { AutoRefresh } from "@/components/auto-refresh";
 export const metadata = { title: "Alertas · Painel" };
 export const dynamic = "force-dynamic";
 
+/** No celular vira botão com área de toque de verdade; no desktop, link discreto. */
+const LINK_ACAO =
+  "inline-flex h-9 items-center rounded-md border border-[var(--color-border)] px-3 text-xs text-[var(--color-info)] " +
+  "sm:h-auto sm:border-0 sm:px-0";
+
 export default async function AlertasPage({
   searchParams,
 }: {
@@ -81,7 +86,7 @@ export default async function AlertasPage({
               const envioFalhou = alerta.notifications.some((n) => n.status === "FAILED");
               return (
                 <li key={alerta.id} className="px-4 py-3">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge tone={ALERT_SEVERITY[alerta.severity].tone} dot>
@@ -98,8 +103,12 @@ export default async function AlertasPage({
                         {envioFalhou && <Badge tone="warn">Telegram falhou</Badge>}
                       </div>
 
-                      <p className="mt-1.5 text-sm font-medium">{alerta.title}</p>
-                      <p className="mt-0.5 text-sm text-[var(--color-muted)]">{alerta.message}</p>
+                      {/* Hostname da tailnet é uma palavra só de 35 caracteres: sem
+                          quebra em qualquer ponto, ele estoura a largura do celular. */}
+                      <p className="mt-1.5 text-sm font-medium [overflow-wrap:anywhere]">{alerta.title}</p>
+                      <p className="mt-0.5 text-sm text-[var(--color-muted)] [overflow-wrap:anywhere]">
+                        {alerta.message}
+                      </p>
 
                       <p className="mt-1.5 text-xs text-[var(--color-faint)]">
                         {alerta.client && (
@@ -113,20 +122,14 @@ export default async function AlertasPage({
                       </p>
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
                       {alerta.backupJob && (
-                        <Link
-                          href={`/jobs/${alerta.backupJob.id}`}
-                          className="text-xs text-[var(--color-info)]"
-                        >
+                        <Link href={`/jobs/${alerta.backupJob.id}`} className={LINK_ACAO}>
                           ver job
                         </Link>
                       )}
                       {alerta.machine && (
-                        <Link
-                          href={`/maquinas/${alerta.machine.id}`}
-                          className="text-xs text-[var(--color-info)]"
-                        >
+                        <Link href={`/maquinas/${alerta.machine.id}`} className={LINK_ACAO}>
                           ver máquina
                         </Link>
                       )}

@@ -16,7 +16,14 @@ export function ConfigTabs() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex gap-1 overflow-x-auto border-b border-[var(--color-border)]">
+    // No celular as quatro abas não cabem numa linha — viram um seletor 2×2,
+    // todas visíveis. A partir de sm voltam a ser abas sublinhadas.
+    <nav
+      className={cn(
+        "grid grid-cols-2 gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-1",
+        "sm:flex sm:overflow-x-auto sm:rounded-none sm:border-0 sm:border-b sm:bg-transparent sm:p-0",
+      )}
+    >
       {ABAS.map(({ href, label, Icone }) => {
         const ativo = pathname === href || pathname.startsWith(`${href}/`);
         return (
@@ -25,10 +32,11 @@ export function ConfigTabs() {
             href={href}
             aria-current={ativo ? "page" : undefined}
             className={cn(
-              "flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm transition-colors",
+              "flex items-center justify-center gap-2 whitespace-nowrap rounded-md px-2 py-2 text-sm transition-colors",
+              "sm:justify-start sm:rounded-none sm:border-b-2 sm:px-3 sm:py-2.5",
               ativo
-                ? "border-[var(--color-info)] font-medium text-[var(--color-fg)]"
-                : "border-transparent text-[var(--color-muted)] hover:text-[var(--color-fg)]",
+                ? "bg-[var(--color-surface)] font-medium text-[var(--color-fg)] shadow-sm sm:border-[var(--color-info)] sm:bg-transparent sm:shadow-none"
+                : "text-[var(--color-muted)] hover:text-[var(--color-fg)] sm:border-transparent",
             )}
           >
             <Icone className="size-4" />
