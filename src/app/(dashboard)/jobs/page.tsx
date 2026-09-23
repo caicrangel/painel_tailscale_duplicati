@@ -14,7 +14,7 @@ import { JOB_STATUS } from "@/lib/utils/status";
 import { fmtIntervalo, fmtRelativo } from "@/lib/utils/format";
 import { AutoRefresh } from "@/components/auto-refresh";
 
-export const metadata = { title: "Jobs de backup · Painel" };
+export const metadata = { title: "Jobs de backup" };
 export const dynamic = "force-dynamic";
 
 const STATUS: JobStatus[] = ["OK", "WARNING", "ERROR", "LATE", "PAUSED", "UNKNOWN"];

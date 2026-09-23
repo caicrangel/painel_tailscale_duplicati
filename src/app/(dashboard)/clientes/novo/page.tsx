@@ -4,7 +4,7 @@ import { Card, CardBody } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
 import { ClientForm } from "../client-form";
 
-export const metadata = { title: "Novo cliente · Painel" };
+export const metadata = { title: "Novo cliente" };
 
 export default async function NovoClientePage() {
   await requireRole("OPERATOR");

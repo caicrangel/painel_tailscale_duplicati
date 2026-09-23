@@ -4,6 +4,8 @@ import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SmtpForm } from "./form";
 
+
+export const metadata = { title: "E-mail · Configurações" };
 export const dynamic = "force-dynamic";
 
 export default async function EmailPage() {

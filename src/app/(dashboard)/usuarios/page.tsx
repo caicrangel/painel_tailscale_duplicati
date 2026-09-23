@@ -9,7 +9,7 @@ import { ItemMovel, ListaMovel, SomenteDesktop } from "@/components/ui/lista-mov
 import { fmtDataHora } from "@/lib/utils/format";
 import { LinhaUsuario, NovoUsuarioForm } from "./user-forms";
 
-export const metadata = { title: "Usuários · Painel" };
+export const metadata = { title: "Usuários" };
 export const dynamic = "force-dynamic";
 
 const TOM_PAPEL = { ADMIN: "danger", OPERATOR: "info", VIEWER: "neutral" } as const;

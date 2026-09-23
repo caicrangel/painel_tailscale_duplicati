@@ -13,7 +13,7 @@ import { MACHINE_STATUS } from "@/lib/utils/status";
 import { fmtRelativo } from "@/lib/utils/format";
 import { AutoRefresh } from "@/components/auto-refresh";
 
-export const metadata = { title: "Máquinas · Painel" };
+export const metadata = { title: "Máquinas" };
 export const dynamic = "force-dynamic";
 
 const STATUS_VALIDOS: MachineStatus[] = ["ONLINE", "IDLE", "OFFLINE", "UNKNOWN"];

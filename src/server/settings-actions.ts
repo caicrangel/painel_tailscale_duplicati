@@ -18,6 +18,9 @@ import { invalidateSettingsCache, setSetting, type AppSettings } from "@/lib/con
 import { enviarTelegram, formatarTeste } from "@/lib/alerts/telegram";
 import { enviarEmail, escaparHtmlEmail, montarHtml } from "@/lib/alerts/email";
 import { enviarResumoAgora } from "@/lib/alerts/resumo-envio";
+import { salvarAparencia as salvarAparenciaConfig, VARIANTES_LOGO } from "@/lib/config/aparencia";
+import { validarLogo } from "@/lib/aparencia/logo";
+import { hexValido } from "@/lib/aparencia/paleta";
 
 const bool = (fd: FormData, nome: string) => fd.get(nome) === "on" || fd.get(nome) === "true";
 const texto = (fd: FormData, nome: string) => {
@@ -312,4 +315,74 @@ export async function ultimosCiclos() {
     distinct: ["kind"],
     select: { kind: true, startedAt: true, finishedAt: true, ok: true, error: true, itemsProcessed: true },
   });
+}
+
+// ─── Aparência ───────────────────────────────────────────────────────────────
+
+const aparenciaForm = z.object({
+  nome: z.string().trim().min(1, "Informe o nome do painel.").max(40, "Nome com no máximo 40 caracteres."),
+  subtitulo: z.string().trim().max(60, "Subtítulo com no máximo 60 caracteres."),
+  corDestaque: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .refine((v) => v === "" || hexValido(v), "Cor inválida. Use o formato #RRGGBB."),
+  temaPadrao: z.enum(["system", "light", "dark"]),
+});
+
+export async function salvarAparencia(formData: FormData): Promise<ActionResult> {
+  const guard = await guardAction("ADMIN");
+  if (!guard.ok) return guard;
+
+  const campos = aparenciaForm.safeParse({
+    nome: formData.get("nome") ?? "",
+    subtitulo: formData.get("subtitulo") ?? "",
+    corDestaque: formData.get("usarCorPadrao") === "on" ? "" : (formData.get("corDestaque") ?? ""),
+    temaPadrao: formData.get("temaPadrao") ?? "system",
+  });
+  if (!campos.success) return { ok: false, error: primeiroErro(campos.error) };
+
+  const logos: Parameters<typeof salvarAparenciaConfig>[0]["logos"] = {};
+  for (const variante of VARIANTES_LOGO) {
+    const sufixo = variante === "claro" ? "Claro" : "Escuro";
+    if (formData.get(`removerLogo${sufixo}`) === "true") {
+      logos[variante] = "remover";
+      continue;
+    }
+    const arquivo = formData.get(`logo${sufixo}`);
+    if (!(arquivo instanceof File) || arquivo.size === 0) continue;
+
+    const bytes = new Uint8Array(await arquivo.arrayBuffer());
+    const validado = validarLogo(bytes);
+    if (!validado.ok) return { ok: false, error: `Logo do tema ${variante}: ${validado.error}` };
+    logos[variante] = { tipo: validado.tipo, bytes };
+  }
+
+  await salvarAparenciaConfig({
+    nome: campos.data.nome,
+    subtitulo: campos.data.subtitulo,
+    corDestaque: campos.data.corDestaque === "" ? null : campos.data.corDestaque,
+    temaPadrao: campos.data.temaPadrao,
+    mostrarNome: formData.get("mostrarNome") === "on",
+    logos,
+  });
+
+  await audit({
+    userId: guard.user.id,
+    userEmail: guard.user.email,
+    action: "configuracao.aparencia_salva",
+    entityType: "Setting",
+    metadata: {
+      nome: campos.data.nome,
+      corDestaque: campos.data.corDestaque || null,
+      temaPadrao: campos.data.temaPadrao,
+      logos: Object.fromEntries(
+        Object.entries(logos).map(([v, m]) => [v, m === "remover" ? "removido" : "enviado"]),
+      ),
+    },
+  });
+
+  // Nome, logo e cor aparecem em todas as telas, inclusive no login.
+  revalidatePath("/", "layout");
+  return { ok: true, data: undefined };
 }

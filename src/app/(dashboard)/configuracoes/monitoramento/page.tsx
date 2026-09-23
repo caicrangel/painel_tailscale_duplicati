@@ -3,6 +3,8 @@ import { requireRole } from "@/lib/auth/guards";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { LimiaresForm } from "./form";
 
+
+export const metadata = { title: "Monitoramento · Configurações" };
 export const dynamic = "force-dynamic";
 
 export default async function MonitoramentoPage() {

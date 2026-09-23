@@ -12,7 +12,7 @@ import { fmtDataHora, fmtRelativo } from "@/lib/utils/format";
 import { AcknowledgeButton } from "./acknowledge-button";
 import { AutoRefresh } from "@/components/auto-refresh";
 
-export const metadata = { title: "Alertas · Painel" };
+export const metadata = { title: "Alertas" };
 export const dynamic = "force-dynamic";
 
 /** No celular vira botão com área de toque de verdade; no desktop, link discreto. */

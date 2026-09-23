@@ -4,6 +4,8 @@ import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ExecucaoForm, ResumoForm, TelegramForm } from "./forms";
 
+
+export const metadata = { title: "Telegram · Configurações" };
 export const dynamic = "force-dynamic";
 
 export default async function TelegramPage() {

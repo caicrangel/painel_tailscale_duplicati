@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, Td, Th, Tr, EmptyState } from "@/components/ui/table";
 import { fmtDataHora, fmtNumero, fmtRelativo } from "@/lib/utils/format";
 
+
+export const metadata = { title: "Sistema · Configurações" };
 export const dynamic = "force-dynamic";
 
 const ROTULO_CICLO: Record<string, string> = {

@@ -2,7 +2,8 @@ import { requireRole } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/page-header";
 import { ConfigTabs } from "./tabs";
 
-export const metadata = { title: "Configurações · Painel" };
+// Sem título aqui: um título fixo no layout cortaria o modelo "Página · Nome do
+// painel" do layout raiz. Cada aba define o seu.
 
 /**
  * As configurações são organizadas por tecnologia: cada integração tem sua

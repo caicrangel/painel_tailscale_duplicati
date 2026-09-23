@@ -12,7 +12,7 @@ import { StatusSummary, type ItemStatus } from "@/components/status-summary";
 import { ItemMovel, ListaMovel, SomenteDesktop } from "@/components/ui/lista-movel";
 import { AutoRefresh } from "@/components/auto-refresh";
 
-export const metadata = { title: "Clientes · Painel" };
+export const metadata = { title: "Clientes" };
 export const dynamic = "force-dynamic";
 
 const PLANO_LABEL = {
