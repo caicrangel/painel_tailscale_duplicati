@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, Td, Th, Tr, EmptyState } from "@/components/ui/table";
 import { HeatStrip, HeatStripLegenda } from "@/components/heat-strip";
+import { DetalhesMovel, ItemMovel, ListaMovel, SomenteDesktop } from "@/components/ui/lista-movel";
 import { JOB_STATUS } from "@/lib/utils/status";
 import { fmtIntervalo, fmtRelativo } from "@/lib/utils/format";
 import { AutoRefresh } from "@/components/auto-refresh";
@@ -91,57 +92,97 @@ export default async function JobsPage({
           />
         ) : (
           <>
-            <Table>
-              <thead>
-                <tr>
-                  <Th>Job</Th>
-                  <Th>Status</Th>
-                  <Th>Frequência</Th>
-                  <Th>Última execução</Th>
-                  <Th>Próxima esperada</Th>
-                  <Th className="w-px whitespace-nowrap">14 dias</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {ordenados.map((job) => (
-                  <Tr key={job.id}>
-                    <Td>
-                      <Link href={`/jobs/${job.id}`} className="font-medium hover:text-[var(--color-info)]">
-                        {job.name}
-                      </Link>
-                      <p className="text-xs text-[var(--color-faint)]">
-                        {job.machine.displayName ?? job.machine.hostname}
-                        {job.machine.client && ` · ${job.machine.client.name}`}
-                      </p>
-                    </Td>
-                    <Td>
-                      <Badge tone={JOB_STATUS[job.status].tone} dot>
-                        {JOB_STATUS[job.status].label}
-                      </Badge>
-                    </Td>
-                    <Td className="text-[var(--color-muted)]">
+            <ListaMovel>
+              {ordenados.map((job) => (
+                <ItemMovel
+                  key={job.id}
+                  href={`/jobs/${job.id}`}
+                  titulo={job.name}
+                  subtitulo={
+                    <>
+                      {job.machine.displayName ?? job.machine.hostname}
+                      {job.machine.client && ` · ${job.machine.client.name}`}
+                    </>
+                  }
+                  lateral={
+                    <Badge tone={JOB_STATUS[job.status].tone} dot>
+                      {JOB_STATUS[job.status].label}
+                    </Badge>
+                  }
+                >
+                  <DetalhesMovel
+                    itens={[
+                      { rotulo: "Última execução", valor: fmtRelativo(job.lastRunAt) },
+                      {
+                        rotulo: "Próxima esperada",
+                        valor: fmtRelativo(job.nextExpectedAt),
+                        destaque:
+                          job.status === "LATE" ? "font-medium text-[var(--color-late)]" : undefined,
+                      },
+                    ]}
+                  />
+                  <div className="mt-2.5 flex items-center justify-between gap-3">
+                    <HeatStrip dias={faixas.get(job.id) ?? []} />
+                    <span className="truncate text-[11px] text-[var(--color-faint)]">
                       {fmtIntervalo(job.expectedIntervalMinutes)}
-                      <span className="block text-xs text-[var(--color-faint)]">
-                        tolerância {fmtIntervalo(job.toleranceMinutes).replace("a cada ", "")}
-                      </span>
-                    </Td>
-                    <Td className="text-[var(--color-muted)]">{fmtRelativo(job.lastRunAt)}</Td>
-                    <Td
-                      className={
-                        job.status === "LATE"
-                          ? "font-medium text-[var(--color-late)]"
-                          : "text-[var(--color-muted)]"
-                      }
-                    >
-                      {fmtRelativo(job.nextExpectedAt)}
-                    </Td>
-                    <Td className="w-px whitespace-nowrap">
-                      <HeatStrip dias={faixas.get(job.id) ?? []} />
-                    </Td>
-                  </Tr>
-                ))}
-              </tbody>
-            </Table>
+                    </span>
+                  </div>
+                </ItemMovel>
+              ))}
+            </ListaMovel>
+            <SomenteDesktop>
+              <Table>
+                <thead>
+                  <tr>
+                    <Th>Job</Th>
+                    <Th>Status</Th>
+                    <Th>Frequência</Th>
+                    <Th>Última execução</Th>
+                    <Th>Próxima esperada</Th>
+                    <Th className="w-px whitespace-nowrap">14 dias</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ordenados.map((job) => (
+                    <Tr key={job.id}>
+                      <Td>
+                        <Link href={`/jobs/${job.id}`} className="font-medium hover:text-[var(--color-info)]">
+                          {job.name}
+                        </Link>
+                        <p className="text-xs text-[var(--color-faint)]">
+                          {job.machine.displayName ?? job.machine.hostname}
+                          {job.machine.client && ` · ${job.machine.client.name}`}
+                        </p>
+                      </Td>
+                      <Td>
+                        <Badge tone={JOB_STATUS[job.status].tone} dot>
+                          {JOB_STATUS[job.status].label}
+                        </Badge>
+                      </Td>
+                      <Td className="text-[var(--color-muted)]">
+                        {fmtIntervalo(job.expectedIntervalMinutes)}
+                        <span className="block text-xs text-[var(--color-faint)]">
+                          tolerância {fmtIntervalo(job.toleranceMinutes).replace("a cada ", "")}
+                        </span>
+                      </Td>
+                      <Td className="text-[var(--color-muted)]">{fmtRelativo(job.lastRunAt)}</Td>
+                      <Td
+                        className={
+                          job.status === "LATE"
+                            ? "font-medium text-[var(--color-late)]"
+                            : "text-[var(--color-muted)]"
+                        }
+                      >
+                        {fmtRelativo(job.nextExpectedAt)}
+                      </Td>
+                      <Td className="w-px whitespace-nowrap">
+                        <HeatStrip dias={faixas.get(job.id) ?? []} />
+                      </Td>
+                    </Tr>
+                  ))}
+                </tbody>
+              </Table>
+            </SomenteDesktop>
             <div className="border-t border-[var(--color-border)] px-4 py-3">
               <HeatStripLegenda />
             </div>

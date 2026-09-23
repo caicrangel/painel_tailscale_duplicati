@@ -100,7 +100,7 @@ export function LinhaUsuario({
   const [trocandoSenha, setTrocandoSenha] = useState(false);
 
   return (
-    <div className="flex items-center justify-end gap-1">
+    <div className="flex flex-wrap items-center gap-1 md:justify-end">
       <Button variant="ghost" size="sm" onClick={() => setEditando(true)}>
         <Pencil className="size-3.5" />
         Editar

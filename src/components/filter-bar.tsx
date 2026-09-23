@@ -28,7 +28,8 @@ export function FilterBar({
   return (
     <div className="mb-4 flex flex-wrap items-end gap-3">
       {filtros.map((f) => (
-        <div key={f.name} className="min-w-44">
+        // No celular os filtros dividem a linha em vez de empilhar um por linha.
+        <div key={f.name} className="min-w-0 flex-1 basis-36 sm:min-w-44 sm:flex-none sm:basis-auto">
           <label className="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">
             {f.label}
           </label>

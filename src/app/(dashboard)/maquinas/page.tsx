@@ -8,6 +8,7 @@ import { FilterBar } from "@/components/filter-bar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, Td, Th, Tr, EmptyState } from "@/components/ui/table";
+import { DetalhesMovel, ItemMovel, ListaMovel, NomeMaquina, SomenteDesktop } from "@/components/ui/lista-movel";
 import { MACHINE_STATUS } from "@/lib/utils/status";
 import { fmtRelativo } from "@/lib/utils/format";
 import { AutoRefresh } from "@/components/auto-refresh";
@@ -104,71 +105,117 @@ export default async function MaquinasPage({
             hint="Máquinas aparecem automaticamente quando o worker sincroniza os devices da tailnet."
           />
         ) : (
-          <Table>
-            <thead>
-              <tr>
-                <Th>Cliente</Th>
-                <Th>Máquina</Th>
-                <Th>Status</Th>
-                <Th>Jobs</Th>
-                <Th>SO</Th>
-                <Th>Último contato</Th>
-              </tr>
-            </thead>
-            <tbody>
+          <>
+            <ListaMovel>
               {maquinas.map((m) => {
                 const comProblema = m.backupJobs.filter(
                   (j) => j.status === "ERROR" || j.status === "LATE",
                 ).length;
                 return (
-                  <Tr key={m.id}>
-                    <Td>
-                      {m.role === "SUPORTE" ? (
-                        <Badge tone="info">apoio · todos os clientes</Badge>
-                      ) : m.client ? (
-                        <Link
-                          href={`/clientes/${m.client.id}`}
-                          className="text-[var(--color-muted)] hover:text-[var(--color-info)]"
-                        >
-                          {m.client.name}
-                        </Link>
-                      ) : (
-                        <Badge tone="warn">não atribuída</Badge>
-                      )}
-                    </Td>
-                    <Td>
-                      <Link
-                        href={`/maquinas/${m.id}`}
-                        className="font-medium hover:text-[var(--color-info)]"
-                      >
-                        {m.displayName ?? m.hostname}
-                      </Link>
-                      {m.updateAvailable && (
-                        <Badge tone="info" className="ml-2">
-                          update
+                  <ItemMovel
+                    key={m.id}
+                    href={`/maquinas/${m.id}`}
+                    titulo={<NomeMaquina nome={m.displayName ?? m.hostname} />}
+                    subtitulo={
+                      m.role === "SUPORTE"
+                        ? "Apoio · atende todos os clientes"
+                        : (m.client?.name ?? "Não atribuída a um cliente")
+                    }
+                    lateral={
+                      <>
+                        <Badge tone={MACHINE_STATUS[m.status].tone} dot>
+                          {MACHINE_STATUS[m.status].label}
                         </Badge>
-                      )}
-                    </Td>
-                    <Td>
-                      <Badge tone={MACHINE_STATUS[m.status].tone} dot>
-                        {MACHINE_STATUS[m.status].label}
-                      </Badge>
-                    </Td>
-                    <Td>
-                      <span className="tabular-nums">{m._count.backupJobs}</span>
-                      {comProblema > 0 && (
-                        <Badge tone="danger" className="ml-2">
-                          {comProblema}
-                        </Badge>
-                      )}
-                    </Td>
-                    <Td className="text-[var(--color-muted)]">{m.os ?? "—"}</Td>
-                    <Td className="text-[var(--color-muted)]">{fmtRelativo(m.lastSeen)}</Td>
-                  </Tr>
+                        {m.updateAvailable && <Badge tone="info">update</Badge>}
+                        {!m.client && m.role !== "SUPORTE" && <Badge tone="warn">atribuir</Badge>}
+                      </>
+                    }
+                  >
+                    <DetalhesMovel
+                      itens={[
+                        { rotulo: "Último contato", valor: fmtRelativo(m.lastSeen) },
+                        {
+                          rotulo: "Jobs",
+                          valor:
+                            comProblema > 0
+                              ? `${m._count.backupJobs} · ${comProblema} com problema`
+                              : String(m._count.backupJobs),
+                          destaque: comProblema > 0 ? "font-medium text-[var(--color-danger)]" : undefined,
+                        },
+                      ]}
+                    />
+                  </ItemMovel>
                 );
               })}
-            </tbody>
-          </Table>
+            </ListaMovel>
+            <SomenteDesktop>
+              <Table>
+                <thead>
+                  <tr>
+                    <Th>Cliente</Th>
+                    <Th>Máquina</Th>
+                    <Th>Status</Th>
+                    <Th>Jobs</Th>
+                    <Th>SO</Th>
+                    <Th>Último contato</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {maquinas.map((m) => {
+                    const comProblema = m.backupJobs.filter(
+                      (j) => j.status === "ERROR" || j.status === "LATE",
+                    ).length;
+                    return (
+                      <Tr key={m.id}>
+                        <Td>
+                          {m.role === "SUPORTE" ? (
+                            <Badge tone="info">apoio · todos os clientes</Badge>
+                          ) : m.client ? (
+                            <Link
+                              href={`/clientes/${m.client.id}`}
+                              className="text-[var(--color-muted)] hover:text-[var(--color-info)]"
+                            >
+                              {m.client.name}
+                            </Link>
+                          ) : (
+                            <Badge tone="warn">não atribuída</Badge>
+                          )}
+                        </Td>
+                        <Td>
+                          <Link
+                            href={`/maquinas/${m.id}`}
+                            className="font-medium hover:text-[var(--color-info)]"
+                          >
+                            {m.displayName ?? m.hostname}
+                          </Link>
+                          {m.updateAvailable && (
+                            <Badge tone="info" className="ml-2">
+                              update
+                            </Badge>
+                          )}
+                        </Td>
+                        <Td>
+                          <Badge tone={MACHINE_STATUS[m.status].tone} dot>
+                            {MACHINE_STATUS[m.status].label}
+                          </Badge>
+                        </Td>
+                        <Td>
+                          <span className="tabular-nums">{m._count.backupJobs}</span>
+                          {comProblema > 0 && (
+                            <Badge tone="danger" className="ml-2">
+                              {comProblema}
+                            </Badge>
+                          )}
+                        </Td>
+                        <Td className="text-[var(--color-muted)]">{m.os ?? "—"}</Td>
+                        <Td className="text-[var(--color-muted)]">{fmtRelativo(m.lastSeen)}</Td>
+                      </Tr>
+                    );
+                  })}
+                </tbody>
+              </Table>
+            </SomenteDesktop>
+          </>
         )}
       </Card>
     </div>
