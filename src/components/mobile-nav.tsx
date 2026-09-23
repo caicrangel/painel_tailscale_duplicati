@@ -67,7 +67,7 @@ export function MobileNav({
                 <Link
                   href={href}
                   aria-current={ativo ? "page" : undefined}
-                  aria-label={contador > 0 ? `${labelCurto} (${contador} aberto(s))` : undefined}
+                  aria-label={contador > 0 ? `${labelCurto} (${contador} sem ciência)` : undefined}
                   className={cn(
                     "relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] transition-colors",
                     ativo ? "font-medium text-[var(--color-info)]" : "text-[var(--color-muted)]",

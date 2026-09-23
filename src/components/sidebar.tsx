@@ -110,7 +110,7 @@ export function Sidebar({
               {recolhido && (
                 <span className="sr-only">
                   {label}
-                  {contador > 0 && ` (${contador} aberto(s))`}
+                  {contador > 0 && ` (${contador} sem ciência)`}
                 </span>
               )}
             </Link>

@@ -44,4 +44,5 @@ export function estaAtivo(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/** Alertas abertos e ainda não reconhecidos (os que alimentam o selo do menu). */
 export type ContagemAlertas = { abertos: number; criticos: number };

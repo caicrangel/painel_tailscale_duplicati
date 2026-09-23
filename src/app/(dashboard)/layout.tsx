@@ -6,11 +6,12 @@ import { getAparencia } from "@/lib/config/aparencia";
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
 
-  // Selo de alertas abertos no menu: no celular é o primeiro sinal de que algo
-  // precisa de atenção, antes mesmo de abrir o dashboard.
+  // Selo do menu: conta só o que ninguém marcou como ciente. Quem reconheceu
+  // um alerta já sabe dele — o selo fica para o que ainda pede atenção. O
+  // incidente continua aberto no dashboard e na tela de Alertas até resolver.
   const [abertos, criticos, aparencia] = await Promise.all([
-    prisma.alert.count({ where: { closedAt: null } }),
-    prisma.alert.count({ where: { closedAt: null, severity: "CRITICAL" } }),
+    prisma.alert.count({ where: { closedAt: null, acknowledgedAt: null } }),
+    prisma.alert.count({ where: { closedAt: null, acknowledgedAt: null, severity: "CRITICAL" } }),
     getAparencia(),
   ]);
   const marca = {
@@ -19,6 +20,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     logos: aparencia.logos,
     mostrarNome: aparencia.mostrarNome,
     tamanhoLogo: aparencia.tamanhoLogoMenu,
+    alinhamento: aparencia.alinhamentoLogo,
   };
 
   return (
