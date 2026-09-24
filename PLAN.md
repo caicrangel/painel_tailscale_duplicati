@@ -201,6 +201,17 @@ imagem a cada request.
 - **Tema padrão**: vale para navegador sem escolha própria; a escolha do usuário continua
   vencendo.
 
+### 2.8 Saúde do sistema e auditoria (Configurações › Sistema, só ADMIN)
+
+- **Veredito no topo** (verde / amarelo / vermelho) calculado por função pura
+  (`lib/sistema/saude.ts`) a partir do banco (resposta, conexões), dos ciclos do worker e das
+  integrações.
+- **Notificações não entregues** contam só nos últimos 7 dias — falha antiga não mantém o
+  painel amarelo para sempre. A lista mostra canal e erro devolvido; "Reenviar" recoloca as
+  falhas da janela na fila (`PENDING`, tentativas zeradas) e fica no log de auditoria.
+- **Log de auditoria**: leitura do `AuditLog` que já era gravado, com rótulo em português,
+  filtro por categoria e paginação. Ação sem rótulo aparece com o código cru.
+
 ## 3. Lógica crítica (a que vai ter teste)
 
 ### 3.1 Parsing do payload do Duplicati
