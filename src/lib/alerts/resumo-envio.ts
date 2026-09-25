@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/config/env";
 import { getResumoConfig } from "@/lib/config/integracoes";
@@ -32,26 +33,40 @@ export async function gravarUltimoEnvio(dia: string): Promise<void> {
   });
 }
 
+/**
+ * Só máquinas de cliente contam no resumo. Máquina de apoio (técnicos da
+ * infraestrutura) e máquina ainda sem cliente ficam de fora.
+ */
+const MAQUINA_DE_CLIENTE = {
+  role: "CLIENTE",
+  client: { is: { active: true } },
+} satisfies Prisma.MachineWhereInput;
+
 /** Retrato do parque para o resumo. */
 export async function coletarDadosResumo(incluirSucessos: boolean, desde: Date): Promise<DadosResumo> {
   const [clientes, maquinas, jobs, execucoes, problemas, somaBytes] = await Promise.all([
     prisma.client.count({ where: { active: true } }),
-    prisma.machine.groupBy({ by: ["status"], _count: true }),
-    prisma.backupJob.groupBy({ by: ["status"], _count: true, where: { active: true } }),
+    prisma.machine.groupBy({ by: ["status"], _count: true, where: MAQUINA_DE_CLIENTE }),
+    prisma.backupJob.groupBy({
+      by: ["status"],
+      _count: true,
+      where: { active: true, machine: MAQUINA_DE_CLIENTE },
+    }),
     prisma.backupRun.groupBy({
       by: ["parsedResult"],
       _count: true,
-      where: { receivedAt: { gte: desde } },
+      where: { receivedAt: { gte: desde }, backupJob: { machine: MAQUINA_DE_CLIENTE } },
     }),
     prisma.alert.findMany({
-      where: { closedAt: null },
+      // Alerta sem máquina (ex.: de cliente) continua valendo.
+      where: { closedAt: null, OR: [{ machineId: null }, { machine: MAQUINA_DE_CLIENTE }] },
       orderBy: [{ severity: "asc" }, { openedAt: "asc" }],
       take: 15,
       include: { client: { select: { name: true } } },
     }),
     prisma.backupRun.aggregate({
       _sum: { bytesUploaded: true },
-      where: { receivedAt: { gte: desde } },
+      where: { receivedAt: { gte: desde }, backupJob: { machine: MAQUINA_DE_CLIENTE } },
     }),
   ]);
 
@@ -61,7 +76,12 @@ export async function coletarDadosResumo(incluirSucessos: boolean, desde: Date):
 
   const sucessos = incluirSucessos
     ? await prisma.backupJob.findMany({
-        where: { active: true, status: "OK", lastRunAt: { gte: desde } },
+        where: {
+          active: true,
+          status: "OK",
+          lastRunAt: { gte: desde },
+          machine: MAQUINA_DE_CLIENTE,
+        },
         orderBy: { name: "asc" },
         take: 40,
         include: {
